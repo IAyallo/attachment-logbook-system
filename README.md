@@ -39,12 +39,43 @@ A web-based system with three role-specific portals:
 
 ```
 attachment-logbook-system/
-├── client/          ← React + TypeScript PWA frontend
-├── server/          ← Node.js + Express API
-├── database/        ← SQL schema and migration files
-├── docs/            ← Diagrams, wireframes, documentation
+├── client/                  ← React + TypeScript PWA frontend
+├── server/                  ← Node.js + Express API
+│   ├── config/
+│   │   └── db.js            ← PostgreSQL connection
+│   ├── controllers/
+│   │   ├── authController.js
+│   │   └── logController.js
+│   ├── middleware/
+│   │   └── auth.js          ← JWT verification
+│   ├── routes/
+│   │   ├── auth.js
+│   │   └── logs.js
+│   ├── index.js
+│   └── .env                 ← never commit this
+├── database/
+│   └── schema.sql           ← all 10 tables
+├── docs/                    ← diagrams and documentation
 └── README.md
 ```
+
+---
+
+## API Endpoints
+
+### Auth
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/auth/register` | Register a new user | None |
+| POST | `/api/auth/login` | Login and receive JWT | None |
+| GET | `/api/auth/me` | Get current user info | JWT |
+
+### Logbook Entries
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/logs` | Create a log entry | JWT |
+| GET | `/api/logs` | View all own log entries | JWT |
+| PATCH | `/api/logs/:id/submit` | Submit a draft entry | JWT |
 
 ---
 
@@ -52,14 +83,14 @@ attachment-logbook-system/
 
 See [`docs/DEV_SETUP.md`](./docs/DEV_SETUP.md) for the full environment setup guide.
 
-Quick start (once set up):
+Quick start:
 
 ```bash
-# Frontend
-cd client && npm run dev
-
 # Backend
 cd server && npm run dev
+
+# Frontend
+cd client && npm run dev
 ```
 
 ---
@@ -95,6 +126,11 @@ PORT=3000
 |-----------|--------|
 | Project Proposal | ✅ Complete |
 | Dev Environment Setup | ✅ Complete |
-| Requirements & System Design | 🔄 In Progress |
-| Implementation — Sprint 1 | ⬜ Upcoming |
+| System Diagrams (all 7) | ✅ Complete |
+| Database Schema (10 tables) | ✅ Complete |
+| Backend — Auth Module | ✅ Complete |
+| Backend — Logbook Entry Module | ✅ Complete |
+| Backend — Supervisor Approval Routes | 🔄 In Progress |
+| Backend — Admin Dashboard Routes | ⬜ Upcoming |
+| Frontend (React PWA) | ⬜ Upcoming |
 | Testing & Evaluation | ⬜ Upcoming |
