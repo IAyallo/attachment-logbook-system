@@ -99,5 +99,89 @@ const submitLog = async (req, res) => {
         res.status(500).json({ message: 'Server error.' });
     }
 };
+// GET /api/logs/pending — host supervisor views logs awaiting approval
+const getPendingLogs = async (req, res) => {
+    const user_id = req.user.id;
 
-module.exports = { createLog, getLogs, submitLog };
+    try {
+        const supervisor = await pool.query(
+            'SELECT id FROM host_supervisors WHERE user_id = $1', [user_id]
+        );
+        if (supervisor.rows.length === 0) {
+            return res.status(403).json({ message: 'Only host supervisors can view pending logs.' });
+        }
+
+        const result = await pool.query(
+            `SELECT le.*, s.reg_number 
+             FROM logbook_entries le
+             JOIN students s ON le.student_id = s.id
+             WHERE s.host_supervisor_id = $1 AND le.status = 'submitted'
+             ORDER BY le.submitted_at ASC`,
+            [supervisor.rows[0].id]
+        );
+
+        res.status(200).json({
+            message: 'Pending log entries retrieved.',
+            count: result.rows.length,
+            entries: result.rows
+        });
+
+    } catch (err) {
+        console.error('Get pending logs error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+// PATCH /api/logs/:id/review — host supervisor approves or rejects a log
+const reviewLog = async (req, res) => {
+    const { id } = req.params;
+    const { decision, feedback, marks } = req.body; // decision: 'approved' | 'rejected'
+    const user_id = req.user.id;
+
+    if (!['approved', 'rejected'].includes(decision)) {
+        return res.status(400).json({ message: "Decision must be 'approved' or 'rejected'." });
+    }
+
+    try {
+        const supervisor = await pool.query(
+            'SELECT id FROM host_supervisors WHERE user_id = $1', [user_id]
+        );
+        if (supervisor.rows.length === 0) {
+            return res.status(403).json({ message: 'Only host supervisors can review logs.' });
+        }
+
+        const result = await pool.query(
+            `UPDATE logbook_entries le
+             SET status = $1, feedback = $2, marks = $3, approved_by = $4, approved_at = NOW()
+             FROM students s
+             WHERE le.id = $5 
+               AND le.student_id = s.id 
+               AND s.host_supervisor_id = $4
+               AND le.status = 'submitted'
+             RETURNING le.*`,
+            [decision, feedback || null, marks || null, supervisor.rows[0].id, id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'Entry not found or already reviewed.' });
+        }
+
+        // Log to audit trail
+        await pool.query(
+            `INSERT INTO audit_trails (entry_id, actor_id, action, change_detail)
+             VALUES ($1, $2, $3, $4)`,
+            [id, user_id, decision, feedback || 'No feedback provided']
+        );
+
+        res.status(200).json({
+            message: `Log entry ${decision} successfully.`,
+            entry: result.rows[0]
+        });
+
+    } catch (err) {
+        console.error('Review log error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+module.exports = { createLog, getLogs, submitLog, getPendingLogs, reviewLog };

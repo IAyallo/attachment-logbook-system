@@ -39,23 +39,34 @@ A web-based system with three role-specific portals:
 
 ```
 attachment-logbook-system/
-├── client/                  ← React + TypeScript PWA frontend
-├── server/                  ← Node.js + Express API
+├── client/                       ← React + TypeScript PWA frontend
+│   └── src/
+│       ├── api/
+│       │   └── axios.ts          ← Axios instance with JWT interceptor
+│       ├── context/
+│       │   └── AuthContext.tsx   ← Global auth state
+│       ├── pages/
+│       │   ├── Login.tsx
+│       │   ├── StudentDashboard.tsx
+│       │   └── SupervisorDashboard.tsx
+│       ├── App.tsx               ← Routing
+│       └── main.tsx
+├── server/                       ← Node.js + Express API
 │   ├── config/
-│   │   └── db.js            ← PostgreSQL connection
+│   │   └── db.js                 ← PostgreSQL connection
 │   ├── controllers/
 │   │   ├── authController.js
 │   │   └── logController.js
 │   ├── middleware/
-│   │   └── auth.js          ← JWT verification
+│   │   └── auth.js               ← JWT verification
 │   ├── routes/
 │   │   ├── auth.js
 │   │   └── logs.js
 │   ├── index.js
-│   └── .env                 ← never commit this
+│   └── .env                      ← never commit this
 ├── database/
-│   └── schema.sql           ← all 10 tables
-├── docs/                    ← diagrams and documentation
+│   └── schema.sql                ← all 10 tables
+├── docs/                         ← diagrams and documentation
 └── README.md
 ```
 
@@ -73,9 +84,23 @@ attachment-logbook-system/
 ### Logbook Entries
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/api/logs` | Create a log entry | JWT |
-| GET | `/api/logs` | View all own log entries | JWT |
-| PATCH | `/api/logs/:id/submit` | Submit a draft entry | JWT |
+| POST | `/api/logs` | Create a log entry | JWT (student) |
+| GET | `/api/logs` | View all own log entries | JWT (student) |
+| PATCH | `/api/logs/:id/submit` | Submit a draft entry | JWT (student) |
+| GET | `/api/logs/pending` | View logs awaiting approval | JWT (host supervisor) |
+| PATCH | `/api/logs/:id/review` | Approve or reject a log entry | JWT (host supervisor) |
+
+---
+
+## Frontend Pages
+
+| Route | Page | Role |
+|-------|------|------|
+| `/login` | Login | All |
+| `/student` | Student Workspace — create, submit, and track daily logs | Student |
+| `/supervisor` | Log Approval Queue — review and grade submitted logs | Host Supervisor |
+
+Both dashboards are wired to live backend data — no mock data used.
 
 ---
 
@@ -92,6 +117,8 @@ cd server && npm run dev
 # Frontend
 cd client && npm run dev
 ```
+
+Then visit `http://localhost:5173/login`.
 
 ---
 
@@ -130,7 +157,9 @@ PORT=3000
 | Database Schema (10 tables) | ✅ Complete |
 | Backend — Auth Module | ✅ Complete |
 | Backend — Logbook Entry Module | ✅ Complete |
-| Backend — Supervisor Approval Routes | 🔄 In Progress |
+| Backend — Supervisor Approval Module + Audit Trail | ✅ Complete |
+| Frontend — Login, Student & Supervisor Dashboards | ✅ Complete |
 | Backend — Admin Dashboard Routes | ⬜ Upcoming |
-| Frontend (React PWA) | ⬜ Upcoming |
+| Frontend — Admin & Faculty Dashboards | ⬜ Upcoming |
+| Offline-First (Service Workers + IndexedDB) | ⬜ Upcoming |
 | Testing & Evaluation | ⬜ Upcoming |
