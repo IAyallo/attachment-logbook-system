@@ -35,6 +35,7 @@ const SupervisorDashboard = () => {
 
   useEffect(() => {
     fetchPending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = (entry: PendingEntry) => {
@@ -59,7 +60,7 @@ const SupervisorDashboard = () => {
       setFeedback('');
       setMarks('');
       fetchPending();
-    } catch (err: any) {
+    } catch (err: any) { //eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.response?.data?.message || 'Failed to process review.');
     } finally {
       setProcessing(false);

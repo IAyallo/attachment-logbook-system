@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import SupervisorDashboard from './pages/SupervisorDashboard';
+import FacultyDashboard from './pages/FacultyDashboard'; 
+
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -37,6 +39,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="host_supervisor">
             <SupervisorDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faculty"
+        element={
+          <ProtectedRoute allowedRole="faculty_supervisor">
+            <FacultyDashboard />
           </ProtectedRoute>
         }
       />

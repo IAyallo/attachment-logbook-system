@@ -1,0 +1,73 @@
+.stats-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stat-orange {
+  color: var(--accent-orange);
+}
+
+.students-card {
+  flex: 1.2;
+}
+
+.students-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.students-table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.students-table td {
+  padding: 14px 8px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.row-active {
+  background-color: rgba(91, 141, 239, 0.06);
+}
+
+.assessment-card {
+  flex: 1;
+}
+
+.assessment-badge {
+  display: inline-block;
+  background-color: rgba(91, 141, 239, 0.15);
+  color: var(--accent-blue);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.assessment-card h2 {
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.assessment-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.success-message {
+  background-color: rgba(63, 184, 127, 0.1);
+  border: 1px solid var(--accent-green);
+  color: var(--accent-green);
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
