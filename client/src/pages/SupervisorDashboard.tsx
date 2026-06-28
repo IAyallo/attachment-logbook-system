@@ -73,8 +73,11 @@ const SupervisorDashboard = () => {
         <div className="user-card">
           <div className="user-avatar">👔</div>
           <div>
-            <div className="user-name">{user?.email}</div>
-            <div className="user-role">Host Supervisor</div>
+            <div className="user-name">{user?.full_name || user?.email}</div>
+            <div className="user-role">{user?.job_title || 'Host Supervisor'}</div>
+            {user?.institution_name && (
+              <div className="user-institution">{user.institution_name}</div>
+            )}
           </div>
         </div>
 

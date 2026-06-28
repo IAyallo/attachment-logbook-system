@@ -168,6 +168,9 @@ PORT=3000
 | Frontend — Login, Student & Supervisor Dashboards | ✅ Complete |
 | Backend — Assessment Forms Module | ✅ Complete |
 | Frontend — Faculty Evaluation Portal | ✅ Complete |
+| Fix — Login with email OR student reg number | ✅ Complete |
+| Fix — Real names/institution shown (full_name column) | ✅ Complete |
+| Fix — Assessment upsert (no duplicate forms) | ✅ Complete |
 | Backend — Admin Dashboard Routes | ⬜ Upcoming |
 | Frontend — Admin Dashboard | ⬜ Upcoming |
 | Offline-First (Service Workers + IndexedDB) | ⬜ Upcoming |

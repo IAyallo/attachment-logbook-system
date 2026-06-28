@@ -74,13 +74,13 @@ const FacultyDashboard = () => {
   return (
     <div className="dashboard-layout">
       <aside className="sidebar">
-        <div className="user-card">
-          <div className="user-avatar">📋</div>
-          <div>
-            <div className="user-name">{user?.email}</div>
-            <div className="user-role">Faculty Supervisor</div>
-          </div>
+      <div className="user-card">
+        <div className="user-avatar">📋</div>
+        <div>
+          <div className="user-name">{user?.full_name || user?.email}</div>
+          <div className="user-role">{user?.department || 'Faculty Supervisor'}</div>
         </div>
+      </div>
 
         <nav className="sidebar-nav">
           <div className="nav-item active">Evaluations</div>

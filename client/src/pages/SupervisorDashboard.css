@@ -227,3 +227,9 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.user-institution {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}

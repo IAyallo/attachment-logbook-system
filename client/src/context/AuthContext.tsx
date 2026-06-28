@@ -4,6 +4,14 @@ interface User {
   id: string;
   email: string;
   role: string;
+  full_name?: string;
+  department?: string;
+  job_title?: string;
+  institution_name?: string;
+  institution_address?: string;
+  faculty?: string;
+  reg_number?: string;
+  programme?: string;
 }
 
 interface AuthContextType {

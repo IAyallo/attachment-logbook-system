@@ -1,7 +1,7 @@
-import { useState, useEffect, FormEvent } from 'react';
-import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
-import './StudentDashboard.css';
+import { useState, useEffect, FormEvent } from "react";
+import api from "../api/axios";
+import { useAuth } from "../context/AuthContext";
+import "./StudentDashboard.css";
 
 interface LogEntry {
   id: string;
@@ -18,18 +18,18 @@ interface LogEntry {
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
   const [entries, setEntries] = useState<LogEntry[]>([]);
-  const [title, setTitle] = useState('');
-  const [hours, setHours] = useState('');
-  const [description, setDescription] = useState('');
+  const [title, setTitle] = useState("");
+  const [hours, setHours] = useState("");
+  const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const fetchLogs = async () => {
     try {
-      const res = await api.get('/logs');
+      const res = await api.get("/logs");
       setEntries(res.data.entries);
     } catch (err) {
-      console.error('Failed to fetch logs', err);
+      console.error("Failed to fetch logs", err);
     }
   };
 
@@ -39,22 +39,22 @@ const StudentDashboard = () => {
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setSubmitting(true);
 
     try {
-      await api.post('/logs', {
+      await api.post("/logs", {
         title,
         description,
         hours_logged: parseFloat(hours),
-        entry_date: new Date().toISOString().split('T')[0],
+        entry_date: new Date().toISOString().split("T")[0],
       });
-      setTitle('');
-      setHours('');
-      setDescription('');
+      setTitle("");
+      setHours("");
+      setDescription("");
       fetchLogs();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create log entry.');
+      setError(err.response?.data?.message || "Failed to create log entry.");
     } finally {
       setSubmitting(false);
     }
@@ -65,26 +65,27 @@ const StudentDashboard = () => {
       await api.patch(`/logs/${id}/submit`);
       fetchLogs();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to submit log.');
+      alert(err.response?.data?.message || "Failed to submit log.");
     }
   };
 
   const totalHours = entries
-    .filter((e) => e.status === 'approved')
+    .filter((e) => e.status === "approved")
     .reduce((sum, e) => sum + parseFloat(e.hours_logged), 0);
 
-  const approvedCount = entries.filter((e) => e.status === 'approved').length;
-  const submittedCount = entries.filter((e) => e.status !== 'draft').length;
-  const approvalRate = submittedCount > 0 ? Math.round((approvedCount / submittedCount) * 100) : 0;
+  const approvedCount = entries.filter((e) => e.status === "approved").length;
+  const submittedCount = entries.filter((e) => e.status !== "draft").length;
+  const approvalRate =
+    submittedCount > 0 ? Math.round((approvedCount / submittedCount) * 100) : 0;
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      draft: 'badge-draft',
-      submitted: 'badge-pending',
-      approved: 'badge-approved',
-      rejected: 'badge-rejected',
+      draft: "badge-draft",
+      submitted: "badge-pending",
+      approved: "badge-approved",
+      rejected: "badge-rejected",
     };
-    return map[status] || 'badge-draft';
+    return map[status] || "badge-draft";
   };
 
   return (
@@ -93,8 +94,8 @@ const StudentDashboard = () => {
         <div className="user-card">
           <div className="user-avatar">🎓</div>
           <div>
-            <div className="user-name">{user?.email}</div>
-            <div className="user-role">Student</div>
+            <div className="user-name">{user?.full_name || user?.email}</div>
+            <div className="user-role">{user?.reg_number || "Student"}</div>
           </div>
         </div>
 
@@ -102,12 +103,16 @@ const StudentDashboard = () => {
           <div className="nav-item active">Dashboard</div>
         </nav>
 
-        <button className="logout-btn" onClick={logout}>Logout</button>
+        <button className="logout-btn" onClick={logout}>
+          Logout
+        </button>
       </aside>
 
       <main className="main-content">
         <h1>Student Workspace</h1>
-        <p className="subtitle">Manage your industrial attachment progress and daily submissions.</p>
+        <p className="subtitle">
+          Manage your industrial attachment progress and daily submissions.
+        </p>
 
         <div className="content-grid">
           <div className="card new-log-card">
@@ -151,8 +156,12 @@ const StudentDashboard = () => {
               {error && <div className="error-message">{error}</div>}
 
               <div className="form-actions">
-                <button type="submit" className="btn-primary" disabled={submitting}>
-                  {submitting ? 'Saving...' : '▷ Submit Log'}
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? "Saving..." : "▷ Submit Log"}
                 </button>
               </div>
             </form>
@@ -185,17 +194,27 @@ const StudentDashboard = () => {
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id}>
-                  <td>{new Date(entry.entry_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                  <td>
+                    {new Date(entry.entry_date).toLocaleDateString("en-GB", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </td>
                   <td>{entry.title}</td>
                   <td>{entry.hours_logged}</td>
                   <td>
                     <span className={`badge ${statusBadge(entry.status)}`}>
-                      {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                      {entry.status.charAt(0).toUpperCase() +
+                        entry.status.slice(1)}
                     </span>
                   </td>
                   <td>
-                    {entry.status === 'draft' && (
-                      <button className="btn-small" onClick={() => handleSubmitLog(entry.id)}>
+                    {entry.status === "draft" && (
+                      <button
+                        className="btn-small"
+                        onClick={() => handleSubmitLog(entry.id)}
+                      >
                         Submit
                       </button>
                     )}
@@ -204,7 +223,9 @@ const StudentDashboard = () => {
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty-state">No log entries yet. Create your first one above.</td>
+                  <td colSpan={5} className="empty-state">
+                    No log entries yet. Create your first one above.
+                  </td>
                 </tr>
               )}
             </tbody>
