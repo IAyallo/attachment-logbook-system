@@ -90,6 +90,12 @@ attachment-logbook-system/
 | GET | `/api/logs/pending` | View logs awaiting approval | JWT (host supervisor) |
 | PATCH | `/api/logs/:id/review` | Approve or reject a log entry | JWT (host supervisor) |
 
+### Assessment Forms
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/assessments/students` | View assigned students | JWT (faculty supervisor) |
+| POST | `/api/assessments` | Submit a mid-term/final assessment | JWT (faculty supervisor) |
+
 ---
 
 ## Frontend Pages
@@ -99,6 +105,7 @@ attachment-logbook-system/
 | `/login` | Login | All |
 | `/student` | Student Workspace — create, submit, and track daily logs | Student |
 | `/supervisor` | Log Approval Queue — review and grade submitted logs | Host Supervisor |
+| `/faculty` | Faculty Evaluation Portal — assess assigned students | Faculty Supervisor |
 
 Both dashboards are wired to live backend data — no mock data used.
 
@@ -159,7 +166,9 @@ PORT=3000
 | Backend — Logbook Entry Module | ✅ Complete |
 | Backend — Supervisor Approval Module + Audit Trail | ✅ Complete |
 | Frontend — Login, Student & Supervisor Dashboards | ✅ Complete |
+| Backend — Assessment Forms Module | ✅ Complete |
+| Frontend — Faculty Evaluation Portal | ✅ Complete |
 | Backend — Admin Dashboard Routes | ⬜ Upcoming |
-| Frontend — Admin & Faculty Dashboards | ⬜ Upcoming |
+| Frontend — Admin Dashboard | ⬜ Upcoming |
 | Offline-First (Service Workers + IndexedDB) | ⬜ Upcoming |
 | Testing & Evaluation | ⬜ Upcoming |
