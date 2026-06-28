@@ -1,11 +1,14 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ReactNode } from 'react';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Login from './pages/Login';
-import StudentDashboard from './pages/StudentDashboard';
-import SupervisorDashboard from './pages/SupervisorDashboard';
-import FacultyDashboard from './pages/FacultyDashboard'; 
-
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ReactNode } from "react";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import Login from "./pages/Login";
+import StudentDashboard from "./pages/StudentDashboard";
+import SupervisorDashboard from "./pages/SupervisorDashboard";
+import FacultyDashboard from "./pages/FacultyDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminInstitutions from "./pages/AdminInstitutions";
+import AdminUsers from "./pages/AdminUsers";
+import AdminAuditTrails from "./pages/AdminAuditTrails";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -17,7 +20,8 @@ const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRole && user.role !== allowedRole) return <Navigate to="/login" replace />;
+  if (allowedRole && user.role !== allowedRole)
+    return <Navigate to="/login" replace />;
 
   return <>{children}</>;
 };
@@ -47,6 +51,38 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="faculty_supervisor">
             <FacultyDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/institutions"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminInstitutions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/audit-trails"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminAuditTrails />
           </ProtectedRoute>
         }
       />

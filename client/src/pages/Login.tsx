@@ -29,10 +29,13 @@ const Login = () => {
         navigate("/supervisor");
       } else if (user.role === "faculty_supervisor") {
         navigate("/faculty");
+      } else if (user.role === "admin") {
+        navigate("/admin");
       } else {
         setError("This role does not have a dashboard yet.");
       }
-    } catch (err: any) { //eslint-disable-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+      //eslint-disable-line @typescript-eslint/no-explicit-any
       setError(
         err.response?.data?.message || "Login failed. Please try again.",
       );
