@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import api from "../api/axios";
-import { useAuth } from "../context/AuthContext";
 import "./StudentDashboard.css";
+import StudentLayout from '../components/StudentLayout';
 
 interface LogEntry {
   id: string;
@@ -16,7 +16,6 @@ interface LogEntry {
 }
 
 const StudentDashboard = () => {
-  const { user, logout } = useAuth();
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [title, setTitle] = useState("");
   const [hours, setHours] = useState("");
@@ -34,7 +33,7 @@ const StudentDashboard = () => {
   };
 
   useEffect(() => {
-    fetchLogs();
+    fetchLogs(); // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleCreate = async (e: FormEvent) => {
@@ -53,7 +52,7 @@ const StudentDashboard = () => {
       setHours("");
       setDescription("");
       fetchLogs();
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.response?.data?.message || "Failed to create log entry.");
     } finally {
       setSubmitting(false);
@@ -64,7 +63,7 @@ const StudentDashboard = () => {
     try {
       await api.patch(`/logs/${id}/submit`);
       fetchLogs();
-    } catch (err: any) {
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       alert(err.response?.data?.message || "Failed to submit log.");
     }
   };
@@ -89,26 +88,7 @@ const StudentDashboard = () => {
   };
 
   return (
-    <div className="dashboard-layout">
-      <aside className="sidebar">
-        <div className="user-card">
-          <div className="user-avatar">🎓</div>
-          <div>
-            <div className="user-name">{user?.full_name || user?.email}</div>
-            <div className="user-role">{user?.reg_number || "Student"}</div>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <div className="nav-item active">Dashboard</div>
-        </nav>
-
-        <button className="logout-btn" onClick={logout}>
-          Logout
-        </button>
-      </aside>
-
-      <main className="main-content">
+    <StudentLayout>
         <h1>Student Workspace</h1>
         <p className="subtitle">
           Manage your industrial attachment progress and daily submissions.
@@ -231,8 +211,7 @@ const StudentDashboard = () => {
             </tbody>
           </table>
         </div>
-      </main>
-    </div>
+      </StudentLayout>
   );
 };
 

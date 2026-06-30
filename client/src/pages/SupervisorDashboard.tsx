@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
-import { useAuth } from '../context/AuthContext';
 import './SupervisorDashboard.css';
+import SupervisorLayout from '../components/SupervisorLayout';
 
 interface PendingEntry {
   id: string;
@@ -13,7 +13,6 @@ interface PendingEntry {
 }
 
 const SupervisorDashboard = () => {
-  const { user, logout } = useAuth();
   const [pendingLogs, setPendingLogs] = useState<PendingEntry[]>([]);
   const [selected, setSelected] = useState<PendingEntry | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -68,27 +67,7 @@ const SupervisorDashboard = () => {
   };
 
   return (
-    <div className="dashboard-layout">
-      <aside className="sidebar">
-        <div className="user-card">
-          <div className="user-avatar">👔</div>
-          <div>
-            <div className="user-name">{user?.full_name || user?.email}</div>
-            <div className="user-role">{user?.job_title || 'Host Supervisor'}</div>
-            {user?.institution_name && (
-              <div className="user-institution">{user.institution_name}</div>
-            )}
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          <div className="nav-item active">Pending Logs</div>
-        </nav>
-
-        <button className="logout-btn" onClick={logout}>Logout</button>
-      </aside>
-
-      <main className="main-content">
+    <SupervisorLayout>
         <div className="breadcrumb">DASHBOARD &gt; PENDING APPROVALS</div>
         <h1>Log Approval Queue</h1>
         <p className="subtitle">Reviewing {pendingLogs.length} pending daily logs.</p>
@@ -149,12 +128,12 @@ const SupervisorDashboard = () => {
                       />
                     </div>
                     <div className="form-group marks-group">
-                      <label>MARKS (0-100)</label>
+                      <label>MARKS (0-20)</label>
                       <input
                         type="number"
                         min="0"
-                        max="100"
-                        placeholder="85"
+                        max="20"
+                        placeholder="17"
                         value={marks}
                         onChange={(e) => setMarks(e.target.value)}
                       />
@@ -188,8 +167,7 @@ const SupervisorDashboard = () => {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </SupervisorLayout>
   );
 };
 

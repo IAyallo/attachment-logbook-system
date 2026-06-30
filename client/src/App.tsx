@@ -9,7 +9,9 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminInstitutions from "./pages/AdminInstitutions";
 import AdminUsers from "./pages/AdminUsers";
 import AdminAuditTrails from "./pages/AdminAuditTrails";
-
+import StudentLogs from "./pages/StudentLogs";
+import StudentSyncQueue from "./pages/StudentSyncQueue";
+import HostStudentList from "./pages/HostStudentList";
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRole?: string;
@@ -39,10 +41,34 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/student/logs"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentLogs />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/sync-queue"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentSyncQueue />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/supervisor"
         element={
           <ProtectedRoute allowedRole="host_supervisor">
             <SupervisorDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/supervisor/students"
+        element={
+          <ProtectedRoute allowedRole="host_supervisor">
+            <HostStudentList />
           </ProtectedRoute>
         }
       />

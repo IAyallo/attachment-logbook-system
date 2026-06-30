@@ -151,12 +151,12 @@ const FacultyDashboard = () => {
 
                 <div className="form-row">
                   <div className="form-group marks-group">
-                    <label>FACULTY MARKS (0-100)</label>
+                    <label>FACULTY MARKS (0-30)</label>
                     <input
                       type="number"
                       min="0"
-                      max="100"
-                      placeholder="Enter score"
+                      max="30"
+                      placeholder="Enter score (max 30)"
                       value={marks}
                       onChange={(e) => setMarks(e.target.value)}
                       required

@@ -183,5 +183,131 @@ const reviewLog = async (req, res) => {
         res.status(500).json({ message: 'Server error.' });
     }
 };
+// GET /api/logs/host-score/:studentId — calculate auto-average host score for a student
+const getHostScore = async (req, res) => {
+    const { studentId } = req.params;
+    const user_id = req.user.id;
 
-module.exports = { createLog, getLogs, submitLog, getPendingLogs, reviewLog };
+    try {
+        const supervisor = await pool.query(
+            'SELECT id FROM host_supervisors WHERE user_id = $1', [user_id]
+        );
+        if (supervisor.rows.length === 0) {
+            return res.status(403).json({ message: 'Only host supervisors can view this.' });
+        }
+
+        // Confirm student belongs to this supervisor
+        const studentCheck = await pool.query(
+            'SELECT id FROM students WHERE id = $1 AND host_supervisor_id = $2',
+            [studentId, supervisor.rows[0].id]
+        );
+        if (studentCheck.rows.length === 0) {
+            return res.status(403).json({ message: 'This student is not assigned to you.' });
+        }
+
+        // Average of all approved log marks (already stored as out-of-20 values)
+        const avgResult = await pool.query(
+            `SELECT 
+                COALESCE(ROUND(AVG(marks), 2), 0) AS average_score,
+                COUNT(*) AS graded_logs_count
+             FROM logbook_entries
+             WHERE student_id = $1 AND status = 'approved' AND marks IS NOT NULL`,
+            [studentId]
+        );
+
+        // Check if supervisor already overrode this score
+        const override = await pool.query(
+            `SELECT host_marks, host_comments FROM assessment_forms 
+             WHERE student_id = $1 AND form_type = 'host_score'`,
+            [studentId]
+        );
+
+        res.status(200).json({
+            calculated_average: parseFloat(avgResult.rows[0].average_score),
+            graded_logs_count: parseInt(avgResult.rows[0].graded_logs_count),
+            override: override.rows.length > 0 ? override.rows[0] : null
+        });
+
+    } catch (err) {
+        console.error('Get host score error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+// POST /api/logs/host-score/:studentId — host supervisor overrides the final host score
+const setHostScoreOverride = async (req, res) => {
+    const { studentId } = req.params;
+    const { host_marks, host_comments } = req.body;
+    const user_id = req.user.id;
+
+    if (host_marks < 0 || host_marks > 20) {
+        return res.status(400).json({ message: 'Host marks must be between 0 and 20.' });
+    }
+
+    try {
+        const supervisor = await pool.query(
+            'SELECT id FROM host_supervisors WHERE user_id = $1', [user_id]
+        );
+        if (supervisor.rows.length === 0) {
+            return res.status(403).json({ message: 'Only host supervisors can set this.' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO assessment_forms (student_id, host_supervisor_id, form_type, host_marks, host_comments, status, approved_at)
+             VALUES ($1, $2, 'host_score', $3, $4, 'approved', NOW())
+             ON CONFLICT (student_id, form_type)
+             DO UPDATE SET
+                host_marks = EXCLUDED.host_marks,
+                host_comments = EXCLUDED.host_comments,
+                host_supervisor_id = EXCLUDED.host_supervisor_id,
+                status = 'approved',
+                approved_at = NOW()
+             RETURNING *`,
+            [studentId, supervisor.rows[0].id, host_marks, host_comments]
+        );
+
+        res.status(200).json({
+            message: 'Host score finalized successfully.',
+            assessment: result.rows[0]
+        });
+
+    } catch (err) {
+        console.error('Set host score error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+// GET /api/logs/my-students — host supervisor views their assigned students
+const getMyHostStudents = async (req, res) => {
+    const user_id = req.user.id;
+
+    try {
+        const supervisor = await pool.query(
+            'SELECT id FROM host_supervisors WHERE user_id = $1', [user_id]
+        );
+        if (supervisor.rows.length === 0) {
+            return res.status(403).json({ message: 'Only host supervisors can view this.' });
+        }
+
+        const result = await pool.query(
+            `SELECT s.id, s.reg_number, s.programme,
+                    COUNT(le.id) FILTER (WHERE le.status = 'approved') AS approved_logs,
+                    COUNT(le.id) FILTER (WHERE le.status = 'submitted') AS pending_logs
+             FROM students s
+             LEFT JOIN logbook_entries le ON le.student_id = s.id
+             WHERE s.host_supervisor_id = $1
+             GROUP BY s.id
+             ORDER BY s.reg_number ASC`,
+            [supervisor.rows[0].id]
+        );
+
+        res.status(200).json({ students: result.rows });
+
+    } catch (err) {
+        console.error('Get my host students error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+module.exports = { createLog, getLogs, submitLog, getPendingLogs, reviewLog, getHostScore, setHostScoreOverride, getMyHostStudents };
+
