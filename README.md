@@ -1,4 +1,4 @@
-# Attachment Logbook System
+# Attachment Logbook System (LogSync)
 ### Strathmore University — ICS 3, Group E
 
 A Progressive Web Application (PWA) that replaces the manual, paper-based student attachment logbook with a centralized digital platform — enabling real-time monitoring, digital approvals, and compliance reporting.
@@ -15,7 +15,7 @@ A web-based system with four role-specific portals:
 
 | Role | Portal | Key Actions |
 |------|--------|-------------|
-| Student | Logging Module | Submit daily logs, track hours, view sync queue |
+| Student | Logging Module | Submit daily logs, upload composite report, view final grade |
 | Host Supervisor | Approval Portal | Review logs, approve/reject, finalize 20-credit score |
 | Faculty Supervisor | Evaluation Portal | Grade mid-term assessments (30 credits), grade composite report (50 credits) |
 | University Coordinator | Admin Dashboard | Manage institutions, users, monitor audit trail |
@@ -28,8 +28,10 @@ A web-based system with four role-specific portals:
 |-----------|---------|-----------|--------|
 | Daily Logs (auto-averaged, overridable) | 20 | Host Supervisor | `logbook_entries.marks` |
 | Mid-term/Final Assessment | 30 | Faculty Supervisor | `assessment_forms.faculty_marks` |
-| Composite Report (PDF, ~30 pages) | 50 | Faculty Supervisor | `composite_reports.marks` |
+| Composite Report (PDF) | 50 | Faculty Supervisor | `composite_reports.marks` |
 | **Total** | **100** | — | Computed |
+
+Grade boundaries: A (70+, Distinction), B (60+, Merit), C (50+, Pass), F (below 50, Fail)
 
 ---
 
@@ -38,12 +40,19 @@ A web-based system with four role-specific portals:
 | Layer | Technology |
 |-------|-----------|
 | Frontend | React + TypeScript + Vite (PWA) |
-| Offline Support | Service Workers + IndexedDB (Workbox) — planned |
 | Backend | Node.js + Express.js |
 | Database | PostgreSQL 18 |
 | Auth | JWT + Role-Based Access Control (RBAC) |
+| File Upload | Multer (PDF, local disk — see Limitations) |
 | IDE | VS Code |
 | Version Control | Git + GitHub |
+
+---
+
+## Known Limitations
+
+- **File Storage:** Composite report PDFs are stored on local disk (`server/uploads/`). This works for development and demo purposes but is not suitable for production deployment. A cloud storage solution (e.g. AWS S3) should be used in a production environment.
+- **Offline-First:** PWA service worker / IndexedDB offline sync is planned but not yet implemented.
 
 ---
 
@@ -51,50 +60,57 @@ A web-based system with four role-specific portals:
 
 ```
 attachment-logbook-system/
-├── client/                       ← React + TypeScript PWA frontend
+├── client/
 │   └── src/
 │       ├── api/
-│       │   └── axios.ts          ← Axios instance with JWT interceptor
+│       │   └── axios.ts
 │       ├── components/
 │       │   ├── AdminLayout.tsx
 │       │   ├── StudentLayout.tsx
-│       │   └── SupervisorLayout.tsx
-│       ├── context/
-│       │   └── AuthContext.tsx   ← Global auth state
+│       │   ├── SupervisorLayout.tsx
+│       │   └── FacultyLayout.tsx
 │       ├── pages/
 │       │   ├── Login.tsx
 │       │   ├── StudentDashboard.tsx
 │       │   ├── StudentLogs.tsx
 │       │   ├── StudentSyncQueue.tsx
+│       │   ├── StudentReport.tsx
+│       │   ├── StudentGrade.tsx
 │       │   ├── SupervisorDashboard.tsx
 │       │   ├── HostStudentList.tsx
 │       │   ├── FacultyDashboard.tsx
+│       │   ├── FacultyReports.tsx
 │       │   ├── AdminDashboard.tsx
 │       │   ├── AdminInstitutions.tsx
 │       │   ├── AdminUsers.tsx
 │       │   └── AdminAuditTrails.tsx
-│       ├── App.tsx               ← Routing
+│       ├── context/
+│       │   └── AuthContext.tsx
+│       ├── App.tsx
 │       └── main.tsx
-├── server/                       ← Node.js + Express API
-│   ├── config/
-│   │   └── db.js                 ← PostgreSQL connection
+├── server/
+│   ├── config/db.js
 │   ├── controllers/
 │   │   ├── authController.js
 │   │   ├── logController.js
 │   │   ├── assessmentController.js
+│   │   ├── reportController.js
 │   │   └── adminController.js
 │   ├── middleware/
-│   │   └── auth.js               ← JWT verification + admin check
+│   │   ├── auth.js
+│   │   └── upload.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── logs.js
 │   │   ├── assessments.js
+│   │   ├── reports.js
 │   │   └── admin.js
+│   ├── uploads/              (gitignored)
 │   ├── index.js
-│   └── .env                      ← never commit this
+│   └── .env                  (never commit)
 ├── database/
-│   └── schema.sql                ← all tables
-├── docs/                         ← diagrams and documentation
+│   └── schema.sql
+├── docs/
 └── README.md
 ```
 
@@ -115,9 +131,10 @@ attachment-logbook-system/
 | POST | `/api/logs` | Create a log entry | JWT (student) |
 | GET | `/api/logs` | View all own log entries | JWT (student) |
 | PATCH | `/api/logs/:id/submit` | Submit a draft entry | JWT (student) |
+| GET | `/api/logs/my-grade` | Get final grade breakdown | JWT (student) |
 | GET | `/api/logs/pending` | View logs awaiting approval | JWT (host supervisor) |
 | PATCH | `/api/logs/:id/review` | Approve or reject a log entry | JWT (host supervisor) |
-| GET | `/api/logs/my-students` | List host supervisor's assigned students | JWT (host supervisor) |
+| GET | `/api/logs/my-students` | List assigned students | JWT (host supervisor) |
 | GET | `/api/logs/host-score/:studentId` | Get auto-calculated 20-credit host score | JWT (host supervisor) |
 | POST | `/api/logs/host-score/:studentId` | Override/finalize the host score | JWT (host supervisor) |
 
@@ -127,15 +144,24 @@ attachment-logbook-system/
 | GET | `/api/assessments/students` | View assigned students | JWT (faculty supervisor) |
 | POST | `/api/assessments` | Submit a mid-term/final assessment (0-30) | JWT (faculty supervisor) |
 
+### Composite Reports
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/reports/upload` | Upload composite report PDF | JWT (student) |
+| GET | `/api/reports/my-report` | View own report status | JWT (student) |
+| GET | `/api/reports/pending` | View reports awaiting grading | JWT (faculty supervisor) |
+| PATCH | `/api/reports/:id/grade` | Grade a composite report (0-50) | JWT (faculty supervisor) |
+
 ### Admin
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| GET | `/api/admin/overview` | Dashboard stats (hours, sync rate, etc.) | JWT (admin) |
+| GET | `/api/admin/overview` | Dashboard stats | JWT (admin) |
 | GET | `/api/admin/institutions` | List all institutions | JWT (admin) |
 | POST | `/api/admin/institutions` | Register a new institution | JWT (admin) |
-| POST | `/api/admin/users` | Onboard a new user (any role) | JWT (admin) |
 | GET | `/api/admin/users` | List all users | JWT (admin) |
-| GET | `/api/admin/audit-trails` | Recent system activity feed | JWT (admin) |
+| POST | `/api/admin/users` | Onboard a new user | JWT (admin) |
+| GET | `/api/admin/audit-trails` | System activity feed | JWT (admin) |
+| GET | `/api/admin/final-grade/:studentId` | Get student final grade breakdown | JWT (admin) |
 
 ---
 
@@ -144,26 +170,23 @@ attachment-logbook-system/
 | Route | Page | Role |
 |-------|------|------|
 | `/login` | Login (email or student reg number) | All |
-| `/student` | Student Workspace — create, submit, and track daily logs | Student |
-| `/student/logs` | Daily Logs — full log history | Student |
+| `/student` | Student Workspace — create and submit daily logs | Student |
+| `/student/logs` | Daily Logs — full log history with feedback and marks | Student |
 | `/student/sync-queue` | Sync Queue — entries pending submission/sync | Student |
+| `/student/report` | Composite Report — upload PDF, view grading status | Student |
+| `/student/grade` | Final Grade — full breakdown with progress bars | Student |
 | `/supervisor` | Log Approval Queue — review and grade submitted logs | Host Supervisor |
-| `/supervisor/students` | Student List — view assigned students, finalize 20-credit host score | Host Supervisor |
-| `/faculty` | Faculty Evaluation Portal — assess assigned students | Faculty Supervisor |
-| `/admin` | Administrator Overview | Admin |
-| `/admin/institutions` | Institutions — list + register new | Admin |
-| `/admin/users` | Users — list + onboard new | Admin |
-| `/admin/audit-trails` | Full audit trail history | Admin |
-
-All dashboards are wired to live backend data — no mock data used.
+| `/supervisor/students` | Student List — finalize 20-credit host score | Host Supervisor |
+| `/faculty` | Faculty Evaluation Portal — mid-term assessments (0-30) | Faculty Supervisor |
+| `/faculty/reports` | Composite Reports — grade student PDFs (0-50) | Faculty Supervisor |
+| `/admin` | Administrator Overview — system stats | Admin |
+| `/admin/institutions` | Institutions — list and register | Admin |
+| `/admin/users` | Users — list and onboard | Admin |
+| `/admin/audit-trails` | Audit Trail — full system history | Admin |
 
 ---
 
 ## Getting Started
-
-See [`docs/DEV_SETUP.md`](./docs/DEV_SETUP.md) for the full environment setup guide.
-
-Quick start:
 
 ```bash
 # Backend
@@ -173,13 +196,19 @@ cd server && npm run dev
 cd client && npm run dev
 ```
 
-Then visit `http://localhost:5173/login`.
+Visit `http://localhost:5173/login`
+
+### Test Accounts
+| Role | Login | Password |
+|------|-------|----------|
+| Student | `138615` or `ishmael@strathmore.edu` | `password123` |
+| Host Supervisor | `supervisor@company.com` | `password123` |
+| Faculty Supervisor | `faculty@strathmore.edu` | `password123` |
+| Admin | `admin@strathmore.edu` | `password123` |
 
 ---
 
 ## Environment Variables
-
-Create a `.env` file inside `server/` (never commit this):
 
 ```
 DB_HOST=localhost
@@ -210,21 +239,14 @@ PORT=3000
 | Dev Environment Setup | Complete |
 | System Diagrams (all 7) | Complete |
 | Database Schema (10+ tables) | Complete |
-| Backend — Auth (email + reg number login, all 4 roles) | Complete |
-| Backend — Logbook Entries | Complete |
-| Backend — Supervisor Approvals + Audit Trail | Complete |
-| Backend — Faculty Assessment Forms (upsert-safe, 0-30) | Complete |
+| Backend — Auth (email + reg number, all 4 roles) | Complete |
+| Backend — Logbook Entries + Supervisor Approvals | Complete |
+| Backend — Faculty Assessment Forms | Complete |
+| Backend — Composite Report Upload + Grading | Complete |
 | Backend — Admin Dashboard Routes | Complete |
-| Frontend — All 4 dashboards (Student, Host, Faculty, Admin) | Complete |
-| Multi-page navigation — Admin (4 pages) | Complete |
-| Multi-page navigation — Student (3 pages) | Complete |
-| Multi-page navigation — Host Supervisor (2 pages) | Complete |
-| Post-presentation fixes (reg number login, real names, assessment upsert) | Complete |
-| Weighted Grading System (Host 20 + Faculty 30 + Report 50 = 100) | In Progress |
-| — Host Supervisor auto-avg score (0-20, overridable) | Complete |
-| — Faculty Assessment score (0-30) | Complete |
-| — Composite Report upload + grading (0-50) | Upcoming |
-| — Final Grade Breakdown Report | Upcoming |
-| Faculty — My Students / Log Archives / Academic Reports pages | Upcoming |
-| Offline-First (Service Workers + IndexedDB) | Upcoming |
-| Testing & Evaluation | Upcoming |
+| Backend — Final Grade Breakdown (all 3 components) | Complete |
+| Frontend — All 4 roles, all pages wired to live data | Complete |
+| Weighted Grading System (20 + 30 + 50 = 100) | Complete |
+| Post-presentation fixes (reg number login, real names) | Complete |
+| Offline-First PWA (Service Workers + IndexedDB) | Upcoming |
+| Testing and Evaluation | Upcoming |
