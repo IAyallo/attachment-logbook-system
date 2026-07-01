@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../pages/FacultyDashboard.css';
@@ -23,6 +23,9 @@ const FacultyLayout = ({ children }: { children: ReactNode }) => {
           </NavLink>
           <NavLink to="/faculty/reports" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Composite Reports
+          </NavLink>
+          <NavLink to="/faculty/analytics" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Analytics Reports
           </NavLink>
         </nav>
 

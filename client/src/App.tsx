@@ -6,15 +6,19 @@ import StudentDashboard from "./pages/StudentDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
 import FacultyReports from "./pages/FacultyReports";
+import FacultyAssessmentForm from "./pages/FacultyAssessmentForm";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminInstitutions from "./pages/AdminInstitutions";
 import AdminUsers from "./pages/AdminUsers";
+import AdminAssignments from "./pages/AdminAssignments";
 import AdminAuditTrails from "./pages/AdminAuditTrails";
 import StudentLogs from "./pages/StudentLogs";
 import StudentSyncQueue from "./pages/StudentSyncQueue";
 import HostStudentList from "./pages/HostStudentList";
+import HostAssessmentForm from "./pages/HostAssessmentForm";
 import StudentReport from "./pages/StudentReport";
 import StudentGrade from "./pages/StudentGrade";
+import RoleReports from "./pages/RoleReports";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -77,6 +81,22 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/supervisor/reports"
+        element={
+          <ProtectedRoute allowedRole="host_supervisor">
+            <RoleReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/supervisor/assess/:studentId"
+        element={
+          <ProtectedRoute allowedRole="host_supervisor">
+            <HostAssessmentForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/faculty"
         element={
           <ProtectedRoute allowedRole="faculty_supervisor">
@@ -89,6 +109,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="faculty_supervisor">
             <FacultyReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faculty/analytics"
+        element={
+          <ProtectedRoute allowedRole="faculty_supervisor">
+            <RoleReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faculty/assess/:studentId"
+        element={
+          <ProtectedRoute allowedRole="faculty_supervisor">
+            <FacultyAssessmentForm />
           </ProtectedRoute>
         }
       />
@@ -117,6 +153,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/admin/assignments"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminAssignments />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/student/grade"
         element={
           <ProtectedRoute allowedRole="student">
@@ -137,6 +181,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <AdminAuditTrails />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reports"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <RoleReports />
           </ProtectedRoute>
         }
       />

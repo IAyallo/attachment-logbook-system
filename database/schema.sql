@@ -23,6 +23,21 @@ CREATE TYPE supervisor_type AS ENUM ('host', 'faculty');
 
 CREATE TYPE programme_type AS ENUM ('WBL', 'SBL');
 
+CREATE TYPE log_category_type AS ENUM (
+    'WBL Backend Development',
+    'WBL Frontend Development',
+    'WBL QA & Testing',
+    'WBL Documentation & Reporting',
+    'WBL Workplace Professionalism',
+    'WBL Project Management',
+    'SBL Community Engagement',
+    'SBL Service Delivery',
+    'SBL Stakeholder Communication',
+    'SBL Civic Reflection',
+    'SBL Social Impact Analysis',
+    'SBL Documentation & Reporting'
+);
+
 -- ============================================================
 -- 1. USERS (base table — all roles inherit from here)
 -- ============================================================
@@ -108,6 +123,7 @@ CREATE TABLE logbook_entries (
     approved_by     UUID REFERENCES host_supervisors(id) ON DELETE SET NULL,
     title           VARCHAR(150) NOT NULL,
     description     TEXT NOT NULL,
+    category        log_category_type NOT NULL DEFAULT 'WBL Workplace Professionalism',
     hours_logged    DECIMAL(4,2) NOT NULL CHECK (hours_logged > 0),
     status          entry_status NOT NULL DEFAULT 'draft',
     sync_status     sync_status NOT NULL DEFAULT 'pending',

@@ -1,12 +1,15 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, useEffect } from "react";
+import type { FormEvent } from "react";
 import api from "../api/axios";
 import "./StudentDashboard.css";
 import StudentLayout from '../components/StudentLayout';
+import { useAuth } from '../context/AuthContext';
 
 interface LogEntry {
   id: string;
   title: string;
   description: string;
+  category: string;
   hours_logged: string;
   status: string;
   sync_status: string;
@@ -16,10 +19,31 @@ interface LogEntry {
 }
 
 const StudentDashboard = () => {
+  const { user } = useAuth();
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [title, setTitle] = useState("");
   const [hours, setHours] = useState("");
   const [description, setDescription] = useState("");
+  const wblCategories = [
+    "WBL Backend Development",
+    "WBL Frontend Development",
+    "WBL QA & Testing",
+    "WBL Documentation & Reporting",
+    "WBL Workplace Professionalism",
+    "WBL Project Management",
+  ];
+
+  const sblCategories = [
+    "SBL Community Engagement",
+    "SBL Service Delivery",
+    "SBL Stakeholder Communication",
+    "SBL Civic Reflection",
+    "SBL Social Impact Analysis",
+    "SBL Documentation & Reporting",
+  ];
+
+  const categoryOptions = user?.programme === "SBL" ? sblCategories : wblCategories;
+  const [category, setCategory] = useState("WBL Workplace Professionalism");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -33,8 +57,27 @@ const StudentDashboard = () => {
   };
 
   useEffect(() => {
-    fetchLogs(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    let isMounted = true;
+
+    api
+      .get("/logs")
+      .then((res) => {
+        if (isMounted) {
+          setEntries(res.data.entries);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch logs", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  const effectiveCategory = categoryOptions.includes(category)
+    ? category
+    : categoryOptions[0];
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,12 +88,14 @@ const StudentDashboard = () => {
       await api.post("/logs", {
         title,
         description,
+        category: effectiveCategory,
         hours_logged: parseFloat(hours),
         entry_date: new Date().toISOString().split("T")[0],
       });
       setTitle("");
       setHours("");
       setDescription("");
+      setCategory(categoryOptions[0]);
       fetchLogs();
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.response?.data?.message || "Failed to create log entry.");
@@ -120,6 +165,14 @@ const StudentDashboard = () => {
                     required
                   />
                 </div>
+                <div className="form-group" style={{ maxWidth: "220px" }}>
+                  <label>CATEGORY</label>
+                  <select value={effectiveCategory} onChange={(e) => setCategory(e.target.value)}>
+                    {categoryOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="form-group">
@@ -166,6 +219,7 @@ const StudentDashboard = () => {
               <tr>
                 <th>DATE</th>
                 <th>TITLE</th>
+                <th>CATEGORY</th>
                 <th>HOURS</th>
                 <th>STATUS</th>
                 <th>ACTIONS</th>
@@ -182,6 +236,7 @@ const StudentDashboard = () => {
                     })}
                   </td>
                   <td>{entry.title}</td>
+                  <td>{entry.category}</td>
                   <td>{entry.hours_logged}</td>
                   <td>
                     <span className={`badge ${statusBadge(entry.status)}`}>
@@ -203,7 +258,7 @@ const StudentDashboard = () => {
               ))}
               {entries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty-state">
+                  <td colSpan={6} className="empty-state">
                     No log entries yet. Create your first one above.
                   </td>
                 </tr>

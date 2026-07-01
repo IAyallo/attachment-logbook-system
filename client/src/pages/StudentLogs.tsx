@@ -7,6 +7,7 @@ interface LogEntry {
   id: string;
   title: string;
   description: string;
+  category: string;
   hours_logged: string;
   status: string;
   sync_status: string;
@@ -43,6 +44,7 @@ const StudentLogs = () => {
             <tr>
               <th>DATE</th>
               <th>TITLE</th>
+                <th>CATEGORY</th>
               <th>DESCRIPTION</th>
               <th>HOURS</th>
               <th>STATUS</th>
@@ -55,6 +57,7 @@ const StudentLogs = () => {
               <tr key={entry.id}>
                 <td>{new Date(entry.entry_date).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                 <td>{entry.title}</td>
+                <td>{entry.category || 'General'}</td>
                 <td style={{ maxWidth: '280px' }}>{entry.description}</td>
                 <td>{entry.hours_logged}</td>
                 <td>
@@ -68,7 +71,7 @@ const StudentLogs = () => {
             ))}
             {entries.length === 0 && (
               <tr>
-                <td colSpan={7} className="empty-state">No log entries yet.</td>
+                <td colSpan={8} className="empty-state">No log entries yet.</td>
               </tr>
             )}
           </tbody>

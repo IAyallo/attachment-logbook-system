@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../pages/SupervisorDashboard.css';
@@ -26,6 +26,9 @@ const SupervisorLayout = ({ children }: { children: ReactNode }) => {
           </NavLink>
           <NavLink to="/supervisor/students" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Student List
+          </NavLink>
+          <NavLink to="/supervisor/reports" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Reports
           </NavLink>
         </nav>
 

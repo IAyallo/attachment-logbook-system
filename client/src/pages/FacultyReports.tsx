@@ -10,8 +10,24 @@ interface PendingReport {
   file_name: string;
   file_path: string;
   reg_number: string;
+  programme: string;
   submitted_at: string;
 }
+
+const reportCriteria: Record<string, Array<{ label: string; marks: number }>> = {
+  WBL: [
+    { label: 'Technical depth and practical relevance', marks: 20 },
+    { label: 'Evidence of workplace learning outcomes', marks: 15 },
+    { label: 'Analysis, reflection, and recommendations', marks: 15 },
+  ],
+  SBL: [
+    { label: 'Service-learning impact and stakeholder value', marks: 20 },
+    { label: 'Process evidence and quality of implementation', marks: 15 },
+    { label: 'Reflection, ethics, and sustainability insights', marks: 15 },
+  ],
+};
+
+const defaultReportCriteria = reportCriteria.WBL;
 
 const FacultyReports = () => {
   const [reports, setReports] = useState<PendingReport[]>([]);
@@ -61,6 +77,11 @@ const FacultyReports = () => {
     }
   };
 
+  const selectedCriteria = selected
+    ? (reportCriteria[selected.programme] || defaultReportCriteria)
+    : defaultReportCriteria;
+  const criteriaTotal = selectedCriteria.reduce((sum, item) => sum + item.marks, 0);
+
   return (
     <FacultyLayout>
       <h1>Composite Reports</h1>
@@ -103,7 +124,7 @@ const FacultyReports = () => {
             <form onSubmit={handleGrade}>
               <div className="assessment-badge">GRADING REPORT</div>
               <h2>{selected.reg_number}</h2>
-              <p className="assessment-subtitle">{selected.file_name}</p>
+              <p className="assessment-subtitle">{selected.file_name} • {selected.programme}</p>
 
               <a
                 href={`http://localhost:3000/${selected.file_path.replace(/\\/g, '/')}`}
@@ -126,6 +147,23 @@ const FacultyReports = () => {
                     onChange={(e) => setMarks(e.target.value)}
                     required
                   />
+                </div>
+              </div>
+
+              <div className="criteria-panel" style={{ marginBottom: '16px' }}>
+                <div className="criteria-title">
+                  {selected.programme} Report Criteria ({criteriaTotal} Marks)
+                </div>
+                <div className="criteria-subtitle">
+                  Score holistically, then assign the final report mark out of 50.
+                </div>
+                <div className="criteria-list">
+                  {selectedCriteria.map((item) => (
+                    <div key={item.label} className="criteria-item">
+                      <span>{item.label}</span>
+                      <span className="criteria-score">{item.marks}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 

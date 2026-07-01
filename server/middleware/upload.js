@@ -1,28 +1,46 @@
-const multer = require('multer');
-const path = require('path');
+const multer = require("multer");
+const path = require("path");
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/');
-    },
-    filename: (req, file, cb) => {
-        const uniqueName = `${req.user.id}-${Date.now()}${path.extname(file.originalname)}`;
-        cb(null, uniqueName);
-    }
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${req.user.id}-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  },
 });
 
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype === 'application/pdf') {
-        cb(null, true);
-    } else {
-        cb(new Error('Only PDF files are allowed.'), false);
-    }
+  if (file.mimetype === "application/pdf") {
+    cb(null, true);
+  } else {
+    cb(new Error("Only PDF files are allowed."), false);
+  }
 };
 
 const upload = multer({
-    storage,
-    fileFilter,
-    limits: { fileSize: 20 * 1024 * 1024 } // 20MB max
+  storage,
+  fileFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB max
+});
+const csvStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    cb(null, `csv-${Date.now()}.csv`);
+  },
 });
 
-module.exports = upload;
+const csvFilter = (req, file, cb) => {
+  if (file.mimetype === "text/csv" || file.originalname.endsWith(".csv")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only CSV files are allowed."), false);
+  }
+};
+
+const uploadCsv = multer({ storage: csvStorage, fileFilter: csvFilter });
+
+module.exports = { upload, uploadCsv };

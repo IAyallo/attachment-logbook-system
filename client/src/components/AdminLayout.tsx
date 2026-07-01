@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import '../pages/AdminDashboard.css';
@@ -27,8 +27,14 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/admin/users" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Users
           </NavLink>
+          <NavLink to="/admin/assignments" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Assignments
+          </NavLink>
           <NavLink to="/admin/audit-trails" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Audit Trails
+          </NavLink>
+          <NavLink to="/admin/reports" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Reports
           </NavLink>
         </nav>
 

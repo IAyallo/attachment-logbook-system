@@ -1,5 +1,6 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../api/axios';
+import { useNavigate } from 'react-router-dom';
 import './FacultyDashboard.css';
 import FacultyLayout from '../components/FacultyLayout';
 
@@ -15,57 +16,26 @@ interface Student {
 
 const FacultyDashboard = () => {
   const [students, setStudents] = useState<Student[]>([]);
-  const [selected, setSelected] = useState<Student | null>(null);
-  const [marks, setMarks] = useState('');
-  const [comments, setComments] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  const fetchStudents = async () => {
-    try {
-      const res = await api.get('/assessments/students');
-      setStudents(res.data.students);
-    } catch (err) {
-      console.error('Failed to fetch students', err);
-    }
-  };
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchStudents();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    let isMounted = true;
 
-  const handleSelect = (student: Student) => {
-    setSelected(student);
-    setMarks('');
-    setComments('');
-    setError('');
-    setSuccess('');
-  };
-
-  const handleSubmitAssessment = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selected) return;
-    setError('');
-    setSuccess('');
-    setSubmitting(true);
-
-    try {
-      await api.post('/assessments', {
-        student_id: selected.id,
-        form_type: 'mid_term',
-        faculty_marks: parseFloat(marks),
-        faculty_comments: comments,
+    api
+      .get('/assessments/students')
+      .then((res) => {
+        if (isMounted) {
+          setStudents(res.data.students);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch students', err);
       });
-      setSuccess('Assessment submitted successfully.');
-      fetchStudents();
-    } catch (err: any) { //eslint-disable-line @typescript-eslint/no-explicit-any
-      setError(err.response?.data?.message || 'Failed to submit assessment.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const pendingCount = students.filter((s) => s.assessment_status !== 'approved').length;
   const completedCount = students.filter((s) => s.assessment_status === 'approved').length;
@@ -100,7 +70,7 @@ const FacultyDashboard = () => {
               </thead>
               <tbody>
                 {students.map((s) => (
-                  <tr key={s.id} className={selected?.id === s.id ? 'row-active' : ''}>
+                  <tr key={s.id}>
                     <td>{s.reg_number}</td>
                     <td>{s.programme}</td>
                     <td>
@@ -109,7 +79,10 @@ const FacultyDashboard = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-small" onClick={() => handleSelect(s)}>
+                      <button
+                        className="btn-small"
+                        onClick={() => navigate(`/faculty/assess/${s.id}`)}
+                      >
                         Assess
                       </button>
                     </td>
@@ -125,50 +98,20 @@ const FacultyDashboard = () => {
           </div>
 
           <div className="card assessment-card">
-            {selected ? (
-              <form onSubmit={handleSubmitAssessment}>
-                <div className="assessment-badge">FOCUSED EVALUATION</div>
-                <h2>Assessment Form: {selected.reg_number}</h2>
-                <p className="assessment-subtitle">{selected.programme} Attachment Programme</p>
-
-                <div className="form-row">
-                  <div className="form-group marks-group">
-                    <label>FACULTY MARKS (0-30)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      placeholder="Enter score (max 30)"
-                      value={marks}
-                      onChange={(e) => setMarks(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>FACULTY COMMENTS</label>
-                  <textarea
-                    rows={4}
-                    placeholder="Provide qualitative feedback on technical progress and professional conduct..."
-                    value={comments}
-                    onChange={(e) => setComments(e.target.value)}
-                    required
-                  />
-                </div>
-
-                {error && <div className="error-message">{error}</div>}
-                {success && <div className="success-message">{success}</div>}
-
-                <div className="form-actions">
-                  <button type="submit" className="btn-primary" disabled={submitting}>
-                    {submitting ? 'Submitting...' : 'Submit Evaluation'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div className="empty-detail">Select a student to begin their assessment.</div>
-            )}
+            <div className="assessment-badge">ASSESSMENT FLOW</div>
+            <h2>Question-Based Rubric Form</h2>
+            <p className="assessment-subtitle">
+              Click Assess for any student to open the full {`WBL/SBL`} rubric with scored criteria and open-ended questions.
+            </p>
+            <div className="criteria-panel">
+              <div className="criteria-title">Scoring Logic</div>
+              <div className="criteria-subtitle">
+                Each criterion is rated 1-5 across 10 questions. The system auto-converts the total to a score out of 30.
+              </div>
+            </div>
+            <div className="empty-detail" style={{ marginTop: '16px' }}>
+              Select a student from the list and continue to their assessment form.
+            </div>
           </div>
         </div>
       </FacultyLayout>

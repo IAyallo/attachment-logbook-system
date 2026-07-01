@@ -1,14 +1,33 @@
 const pool = require("../config/db");
 
+const categoryByProgramme = {
+  WBL: [
+    "WBL Backend Development",
+    "WBL Frontend Development",
+    "WBL QA & Testing",
+    "WBL Documentation & Reporting",
+    "WBL Workplace Professionalism",
+    "WBL Project Management",
+  ],
+  SBL: [
+    "SBL Community Engagement",
+    "SBL Service Delivery",
+    "SBL Stakeholder Communication",
+    "SBL Civic Reflection",
+    "SBL Social Impact Analysis",
+    "SBL Documentation & Reporting",
+  ],
+};
+
 // POST /api/logs — student creates a log entry
 const createLog = async (req, res) => {
-  const { title, description, hours_logged, entry_date } = req.body;
+  const { title, description, hours_logged, entry_date, category } = req.body;
   const student_id = req.user.id;
 
   try {
     // Verify the user is a student
     const student = await pool.query(
-      "SELECT id FROM students WHERE user_id = $1",
+      "SELECT id, programme FROM students WHERE user_id = $1",
       [student_id],
     );
     if (student.rows.length === 0) {
@@ -17,12 +36,29 @@ const createLog = async (req, res) => {
         .json({ message: "Only students can create log entries." });
     }
 
+    const programme = student.rows[0].programme;
+    const allowedLogCategories = categoryByProgramme[programme] || [];
+    const normalizedCategory = category || allowedLogCategories[0];
+
+    if (!allowedLogCategories.includes(normalizedCategory)) {
+      return res.status(400).json({
+        message: `Invalid category for ${programme}.`,
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO logbook_entries 
-                (student_id, title, description, hours_logged, entry_date, status, sync_status)
-             VALUES ($1, $2, $3, $4, $5, 'draft', 'pending')
+                (student_id, title, description, category, hours_logged, entry_date, status, sync_status)
+             VALUES ($1, $2, $3, $4, $5, $6, 'draft', 'pending')
              RETURNING *`,
-      [student.rows[0].id, title, description, hours_logged, entry_date],
+      [
+        student.rows[0].id,
+        title,
+        description,
+        normalizedCategory,
+        hours_logged,
+        entry_date,
+      ],
     );
 
     res.status(201).json({
@@ -319,11 +355,20 @@ const getMyHostStudents = async (req, res) => {
     const result = await pool.query(
       `SELECT s.id, s.reg_number, s.programme,
                     COUNT(le.id) FILTER (WHERE le.status = 'approved') AS approved_logs,
-                    COUNT(le.id) FILTER (WHERE le.status = 'submitted') AS pending_logs
+                    COUNT(le.id) FILTER (WHERE le.status = 'submitted') AS pending_logs,
+                    COALESCE(
+                      ROUND(AVG(le.marks) FILTER (WHERE le.status = 'approved' AND le.marks IS NOT NULL), 2),
+                      0
+                    ) AS average_log_score,
+                    COUNT(le.id) FILTER (WHERE le.status = 'approved' AND le.marks IS NOT NULL) AS graded_logs_count,
+                    af.host_marks AS finalized_host_marks
              FROM students s
              LEFT JOIN logbook_entries le ON le.student_id = s.id
+             LEFT JOIN assessment_forms af
+               ON af.student_id = s.id
+              AND af.form_type = 'host_score'
              WHERE s.host_supervisor_id = $1
-             GROUP BY s.id
+             GROUP BY s.id, af.host_marks
              ORDER BY s.reg_number ASC`,
       [supervisor.rows[0].id],
     );

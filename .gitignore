@@ -144,3 +144,7 @@ vite.config.ts.timestamp-*
 
 # Uploads
 uploads/
+Attachment-logbook-system - Claude.pdf
+database/Doc1.docx
+database/Doc1.pdf
+.gitignore
