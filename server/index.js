@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const logRoutes = require('./routes/logs');
 const assessmentRoutes = require('./routes/assessments');
 const adminRoutes = require('./routes/admin');
+const reportRoutes = require('./routes/reports');
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/admin', adminRoutes);
-
+app.use('/api/reports', reportRoutes);
+app.use('/uploads', express.static('uploads')); // Serve uploaded files
 //Start Server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

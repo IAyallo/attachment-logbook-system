@@ -7,7 +7,8 @@ const {
     createInstitution,
     createUser,
     getAuditTrails,
-    getUsers
+    getUsers,
+    getFinalGrade
 } = require('../controllers/adminController');
 
 router.get('/overview', verifyToken, verifyAdmin, getOverview);
@@ -16,4 +17,5 @@ router.post('/institutions', verifyToken, verifyAdmin, createInstitution);
 router.post('/users', verifyToken, verifyAdmin, createUser);
 router.get('/audit-trails', verifyToken, verifyAdmin, getAuditTrails);
 router.get('/users', verifyToken, verifyAdmin, getUsers);
+router.get('/final-grade/:studentId', verifyToken, getFinalGrade);
 module.exports = router;

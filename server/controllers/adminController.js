@@ -152,4 +152,60 @@ const getUsers = async (req, res) => {
     }
 };
 
-module.exports = { getOverview, getInstitutions, createInstitution, createUser, getAuditTrails, getUsers };
+// GET /api/admin/final-grade/:studentId — full grade breakdown for a student
+const getFinalGrade = async (req, res) => {
+    const { studentId } = req.params;
+
+    try {
+        // Host score (out of 20) — from assessment_forms with form_type = 'host_score'
+        const hostScore = await pool.query(
+            `SELECT host_marks FROM assessment_forms WHERE student_id = $1 AND form_type = 'host_score'`,
+            [studentId]
+        );
+
+        // Faculty assessment score (out of 30) — from assessment_forms with form_type = 'mid_term'
+        const facultyScore = await pool.query(
+            `SELECT faculty_marks FROM assessment_forms WHERE student_id = $1 AND form_type = 'mid_term'`,
+            [studentId]
+        );
+
+        // Composite report score (out of 50)
+        const reportScore = await pool.query(
+            `SELECT marks FROM composite_reports WHERE student_id = $1 AND status = 'graded'`,
+            [studentId]
+        );
+
+        const student = await pool.query(
+            `SELECT reg_number, programme FROM students WHERE id = $1`,
+            [studentId]
+        );
+
+        if (student.rows.length === 0) {
+            return res.status(404).json({ message: 'Student not found.' });
+        }
+
+        const host = hostScore.rows[0]?.host_marks ? parseFloat(hostScore.rows[0].host_marks) : null;
+        const faculty = facultyScore.rows[0]?.faculty_marks ? parseFloat(facultyScore.rows[0].faculty_marks) : null;
+        const report = reportScore.rows[0]?.marks ? parseFloat(reportScore.rows[0].marks) : null;
+
+        const total = (host || 0) + (faculty || 0) + (report || 0);
+        const isComplete = host !== null && faculty !== null && report !== null;
+
+        res.status(200).json({
+            student: student.rows[0],
+            breakdown: {
+                host_score: host,
+                faculty_score: faculty,
+                report_score: report,
+                total_grade: total,
+                is_complete: isComplete
+            }
+        });
+
+    } catch (err) {
+        console.error('Get final grade error:', err);
+        res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+module.exports = { getOverview, getInstitutions, createInstitution, createUser, getAuditTrails, getUsers, getFinalGrade };

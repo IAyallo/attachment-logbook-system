@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
-const { createLog, getLogs, submitLog, getPendingLogs, reviewLog, getHostScore, setHostScoreOverride, getMyHostStudents } = require('../controllers/logController');
+const { createLog, getLogs, submitLog, getPendingLogs, reviewLog, getHostScore, setHostScoreOverride, getMyHostStudents, getMyGrade } = require('../controllers/logController');
 router.post('/', verifyToken, createLog);
 router.get('/', verifyToken, getLogs);
 router.patch('/:id/submit', verifyToken, submitLog);
@@ -10,4 +10,5 @@ router.patch('/:id/review', verifyToken, reviewLog);
 router.get('/host-score/:studentId', verifyToken, getHostScore);
 router.post('/host-score/:studentId', verifyToken, setHostScoreOverride);
 router.get('/my-students', verifyToken, getMyHostStudents);
+router.get('/my-grade', verifyToken, getMyGrade);
 module.exports = router;

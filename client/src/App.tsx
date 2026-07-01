@@ -1,10 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import StudentDashboard from "./pages/StudentDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
 import FacultyDashboard from "./pages/FacultyDashboard";
+import FacultyReports from "./pages/FacultyReports";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminInstitutions from "./pages/AdminInstitutions";
 import AdminUsers from "./pages/AdminUsers";
@@ -12,6 +13,9 @@ import AdminAuditTrails from "./pages/AdminAuditTrails";
 import StudentLogs from "./pages/StudentLogs";
 import StudentSyncQueue from "./pages/StudentSyncQueue";
 import HostStudentList from "./pages/HostStudentList";
+import StudentReport from "./pages/StudentReport";
+import StudentGrade from "./pages/StudentGrade";
+
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRole?: string;
@@ -81,6 +85,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/faculty/reports"
+        element={
+          <ProtectedRoute allowedRole="faculty_supervisor">
+            <FacultyReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin"
         element={
           <ProtectedRoute allowedRole="admin">
@@ -101,6 +113,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/grade"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentGrade />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/report"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentReport />
           </ProtectedRoute>
         }
       />
