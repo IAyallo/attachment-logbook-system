@@ -9,6 +9,9 @@ interface Breakdown {
   report_score: number | null;
   total_grade: number;
   is_complete: boolean;
+  host_review: string | null;
+  faculty_review: string | null;
+  report_review: string | null;
 }
 
 interface GradeData {
@@ -16,8 +19,24 @@ interface GradeData {
   breakdown: Breakdown;
 }
 
+const ScoreBar = ({ value, max, label }: { value: number | null; max: number; label: string }) => {
+  const pct = value !== null ? (value / max) * 100 : 0;
+  return (
+    <div className="score-row">
+      <div className="score-label">{label}</div>
+      <div className="score-bar-wrapper">
+        <div className="score-bar" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="score-value">
+        {value !== null ? `${value} / ${max}` : <span className="score-pending">Pending</span>}
+      </div>
+    </div>
+  );
+};
+
 const StudentGrade = () => {
   const [data, setData] = useState<GradeData | null>(null);
+  const [selectedReview, setSelectedReview] = useState<'host' | 'faculty' | 'report'>('host');
 
   useEffect(() => {
     api.get('/logs/my-grade').then((res) => setData(res.data)).catch(console.error);
@@ -31,21 +50,6 @@ const StudentGrade = () => {
   };
 
   const grade = data ? getGradeLetter(data.breakdown.total_grade) : null;
-
-  const ScoreBar = ({ value, max, label }: { value: number | null; max: number; label: string }) => {
-    const pct = value !== null ? (value / max) * 100 : 0;
-    return (
-      <div className="score-row">
-        <div className="score-label">{label}</div>
-        <div className="score-bar-wrapper">
-          <div className="score-bar" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="score-value">
-          {value !== null ? `${value} / ${max}` : <span className="score-pending">Pending</span>}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <StudentLayout>
@@ -118,6 +122,68 @@ const StudentGrade = () => {
               </span>
             </div>
           </div>
+
+          {data.breakdown.is_complete && (
+            <div className="card" style={{ marginTop: '20px' }}>
+              <h2>Supervisor Reviews</h2>
+              <p className="grade-breakdown-subtitle">
+                Additional comments and checklist review details from your host and faculty supervisors.
+              </p>
+
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={() => setSelectedReview('host')}
+                  style={{
+                    background: selectedReview === 'host' ? 'var(--accent-blue)' : undefined,
+                    color: selectedReview === 'host' ? '#fff' : undefined,
+                  }}
+                >
+                  Host Review (20)
+                </button>
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={() => setSelectedReview('faculty')}
+                  style={{
+                    background: selectedReview === 'faculty' ? 'var(--accent-blue)' : undefined,
+                    color: selectedReview === 'faculty' ? '#fff' : undefined,
+                  }}
+                >
+                  Faculty Review (30)
+                </button>
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={() => setSelectedReview('report')}
+                  style={{
+                    background: selectedReview === 'report' ? 'var(--accent-blue)' : undefined,
+                    color: selectedReview === 'report' ? '#fff' : undefined,
+                  }}
+                >
+                  Report Review (50)
+                </button>
+              </div>
+
+              <div className="form-group">
+                <label>
+                  {selectedReview === 'host'
+                    ? 'HOST SUPERVISOR REVIEW (20 MARK FORM)'
+                    : selectedReview === 'faculty'
+                      ? 'FACULTY SUPERVISOR REVIEW (30 MARK FORM)'
+                      : 'COMPOSITE REPORT REVIEW (50 MARK FORM)'}
+                </label>
+                <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'inherit', lineHeight: 1.55 }}>
+                  {selectedReview === 'host'
+                    ? (data.breakdown.host_review || 'No host supervisor review comments provided.')
+                    : selectedReview === 'faculty'
+                      ? (data.breakdown.faculty_review || 'No faculty supervisor review comments provided.')
+                      : (data.breakdown.report_review || 'No report review comments provided.')}
+                </pre>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="card">

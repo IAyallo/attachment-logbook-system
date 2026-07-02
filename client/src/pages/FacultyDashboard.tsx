@@ -8,6 +8,7 @@ interface Student {
   id: string;
   reg_number: string;
   programme: string;
+  phone_number: string | null;
   attachment_start: string | null;
   attachment_end: string | null;
   assessment_id: string | null;
@@ -64,6 +65,7 @@ const FacultyDashboard = () => {
                 <tr>
                   <th>REG NUMBER</th>
                   <th>PROGRAMME</th>
+                  <th>PHONE</th>
                   <th>STATUS</th>
                   <th>ACTION</th>
                 </tr>
@@ -73,6 +75,7 @@ const FacultyDashboard = () => {
                   <tr key={s.id}>
                     <td>{s.reg_number}</td>
                     <td>{s.programme}</td>
+                    <td>{s.phone_number || '—'}</td>
                     <td>
                       <span className={`badge ${s.assessment_status === 'approved' ? 'badge-approved' : 'badge-pending'}`}>
                         {s.assessment_status === 'approved' ? 'Evaluated' : 'Ready for Review'}
@@ -90,7 +93,7 @@ const FacultyDashboard = () => {
                 ))}
                 {students.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="empty-state">No students assigned yet.</td>
+                    <td colSpan={5} className="empty-state">No students assigned yet.</td>
                   </tr>
                 )}
               </tbody>

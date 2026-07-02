@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const { createNotification } = require("../utils/notifications");
 
 const categoryByProgramme = {
   WBL: [
@@ -230,6 +231,27 @@ const reviewLog = async (req, res) => {
       message: `Log entry ${decision} successfully.`,
       entry: result.rows[0],
     });
+
+    const recipient = await pool.query(
+      `SELECT u.id AS user_id
+       FROM students s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.id = $1`,
+      [result.rows[0].student_id],
+    );
+
+    if (recipient.rows.length > 0) {
+      await createNotification({
+        recipientId: recipient.rows[0].user_id,
+        actorId: user_id,
+        type: "log_review",
+        title: decision === "approved" ? "Log Entry Approved" : "Log Entry Rejected",
+        message:
+          decision === "approved"
+            ? `Your daily log \"${result.rows[0].title}\" was approved by your host supervisor.`
+            : `Your daily log \"${result.rows[0].title}\" was rejected. Review feedback and resubmit.`,
+      });
+    }
   } catch (err) {
     console.error("Review log error:", err);
     res.status(500).json({ message: "Server error." });
@@ -331,6 +353,24 @@ const setHostScoreOverride = async (req, res) => {
       message: "Host score finalized successfully.",
       assessment: result.rows[0],
     });
+
+    const recipient = await pool.query(
+      `SELECT u.id AS user_id
+       FROM students s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.id = $1`,
+      [studentId],
+    );
+
+    if (recipient.rows.length > 0) {
+      await createNotification({
+        recipientId: recipient.rows[0].user_id,
+        actorId: user_id,
+        type: "host_assessment",
+        title: "Host Assessment Submitted",
+        message: `Your host supervisor submitted your final host score (${host_marks}/20).`,
+      });
+    }
   } catch (err) {
     console.error("Set host score error:", err);
     res.status(500).json({ message: "Server error." });
@@ -354,6 +394,7 @@ const getMyHostStudents = async (req, res) => {
 
     const result = await pool.query(
       `SELECT s.id, s.reg_number, s.programme,
+                    u.phone_number,
                     COUNT(le.id) FILTER (WHERE le.status = 'approved') AS approved_logs,
                     COUNT(le.id) FILTER (WHERE le.status = 'submitted') AS pending_logs,
                     COALESCE(
@@ -363,12 +404,13 @@ const getMyHostStudents = async (req, res) => {
                     COUNT(le.id) FILTER (WHERE le.status = 'approved' AND le.marks IS NOT NULL) AS graded_logs_count,
                     af.host_marks AS finalized_host_marks
              FROM students s
+             JOIN users u ON s.user_id = u.id
              LEFT JOIN logbook_entries le ON le.student_id = s.id
              LEFT JOIN assessment_forms af
                ON af.student_id = s.id
               AND af.form_type = 'host_score'
              WHERE s.host_supervisor_id = $1
-             GROUP BY s.id, af.host_marks
+             GROUP BY s.id, u.phone_number, af.host_marks
              ORDER BY s.reg_number ASC`,
       [supervisor.rows[0].id],
     );
@@ -395,15 +437,21 @@ const getMyGrade = async (req, res) => {
     const studentId = student.rows[0].id;
 
     const hostScore = await pool.query(
-      `SELECT host_marks FROM assessment_forms WHERE student_id = $1 AND form_type = 'host_score'`,
+      `SELECT host_marks, host_comments
+       FROM assessment_forms
+       WHERE student_id = $1 AND form_type = 'host_score'`,
       [studentId],
     );
     const facultyScore = await pool.query(
-      `SELECT faculty_marks FROM assessment_forms WHERE student_id = $1 AND form_type = 'mid_term'`,
+      `SELECT faculty_marks, faculty_comments
+       FROM assessment_forms
+       WHERE student_id = $1 AND form_type = 'mid_term'`,
       [studentId],
     );
     const reportScore = await pool.query(
-      `SELECT marks FROM composite_reports WHERE student_id = $1 AND status = 'graded'`,
+      `SELECT marks, faculty_comments
+       FROM composite_reports
+       WHERE student_id = $1 AND status = 'graded'`,
       [studentId],
     );
 
@@ -419,6 +467,9 @@ const getMyGrade = async (req, res) => {
 
     const total = (host || 0) + (faculty || 0) + (report || 0);
     const isComplete = host !== null && faculty !== null && report !== null;
+    const hostReview = isComplete ? hostScore.rows[0]?.host_comments || null : null;
+    const facultyReview = isComplete ? facultyScore.rows[0]?.faculty_comments || null : null;
+    const reportReview = isComplete ? reportScore.rows[0]?.faculty_comments || null : null;
 
     res.status(200).json({
       student: {
@@ -431,6 +482,9 @@ const getMyGrade = async (req, res) => {
         report_score: report,
         total_grade: total,
         is_complete: isComplete,
+        host_review: hostReview,
+        faculty_review: facultyReview,
+        report_review: reportReview,
       },
     });
   } catch (err) {

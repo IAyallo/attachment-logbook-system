@@ -1,5 +1,6 @@
 const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
+const { createNotification } = require("../utils/notifications");
 
 // GET /api/admin/overview — dashboard stats
 const getOverview = async (req, res) => {
@@ -81,7 +82,7 @@ const createInstitution = async (req, res) => {
 
 // POST /api/admin/users — onboard a new user (any role)
 const createUser = async (req, res) => {
-  const { email, password, role, full_name, reg_number, programme } = req.body;
+  const { email, password, role, full_name, phone_number, reg_number, programme } = req.body;
 
   if (role === "student" && !reg_number) {
     return res
@@ -120,9 +121,9 @@ const createUser = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     const userResult = await client.query(
-      `INSERT INTO users (email, password_hash, role, full_name)
-       VALUES ($1, $2, $3, $4) RETURNING id, email, role, full_name`,
-      [email, password_hash, role, full_name],
+      `INSERT INTO users (email, password_hash, role, full_name, phone_number)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role, full_name, phone_number`,
+      [email, password_hash, role, full_name, phone_number || null],
     );
 
     const user = userResult.rows[0];
@@ -172,7 +173,7 @@ const getAuditTrails = async (req, res) => {
 const getUsers = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.email, u.full_name, u.role, u.created_at,
+      `SELECT u.id, u.email, u.full_name, u.phone_number, u.role, u.created_at,
                     s.reg_number, 
                     hs.job_title AS host_job_title,
                     fs.department AS faculty_department
@@ -279,6 +280,7 @@ const bulkCreateUsers = async (req, res) => {
       const email = record.email?.trim().toLowerCase();
       const password = record.password;
       const role = record.role?.trim();
+      const phone_number = record.phone_number?.trim() || null;
       const reg_number = record.reg_number?.trim();
       const programme = normalizeProgramme(record.programme);
 
@@ -343,9 +345,9 @@ const bulkCreateUsers = async (req, res) => {
 
         const password_hash = await bcrypt.hash(password, 10);
         const userResult = await client.query(
-          `INSERT INTO users (email, password_hash, role, full_name)
-                     VALUES ($1, $2, $3, $4) RETURNING id, email, role, full_name`,
-          [email, password_hash, role, full_name || null],
+          `INSERT INTO users (email, password_hash, role, full_name, phone_number)
+                     VALUES ($1, $2, $3, $4, $5) RETURNING id, email, role, full_name, phone_number`,
+          [email, password_hash, role, full_name || null, phone_number],
         );
 
         const createdUser = userResult.rows[0];
@@ -451,13 +453,17 @@ const getAssignments = async (req, res) => {
 const updateAssignment = async (req, res) => {
   const { studentId } = req.params;
   const { host_supervisor_id, faculty_supervisor_id } = req.body;
+  const actorId = req.user.id;
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
     const student = await client.query(
-      `SELECT id FROM students WHERE id = $1`,
+      `SELECT s.id, s.reg_number, u.id AS student_user_id
+       FROM students s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.id = $1`,
       [studentId],
     );
 
@@ -497,7 +503,54 @@ const updateAssignment = async (req, res) => {
       [host_supervisor_id || null, faculty_supervisor_id || null, studentId],
     );
 
+    let hostUserId = null;
+    let facultyUserId = null;
+
+    if (host_supervisor_id) {
+      const hostUser = await client.query(
+        `SELECT user_id FROM host_supervisors WHERE id = $1`,
+        [host_supervisor_id],
+      );
+      hostUserId = hostUser.rows[0]?.user_id || null;
+    }
+
+    if (faculty_supervisor_id) {
+      const facultyUser = await client.query(
+        `SELECT user_id FROM faculty_supervisors WHERE id = $1`,
+        [faculty_supervisor_id],
+      );
+      facultyUserId = facultyUser.rows[0]?.user_id || null;
+    }
+
     await client.query("COMMIT");
+
+    await createNotification({
+      recipientId: student.rows[0].student_user_id,
+      actorId,
+      type: "assignment_updated",
+      title: "Supervisor Assignments Updated",
+      message: `Your host/faculty supervisor assignments were updated by admin (${student.rows[0].reg_number}).`,
+    });
+
+    if (hostUserId) {
+      await createNotification({
+        recipientId: hostUserId,
+        actorId,
+        type: "student_assigned",
+        title: "Student Assigned",
+        message: `A new student (${student.rows[0].reg_number}) was assigned to you as host supervisor.`,
+      });
+    }
+
+    if (facultyUserId) {
+      await createNotification({
+        recipientId: facultyUserId,
+        actorId,
+        type: "student_assigned",
+        title: "Student Assigned",
+        message: `A new student (${student.rows[0].reg_number}) was assigned to you as faculty supervisor.`,
+      });
+    }
 
     res.status(200).json({
       message: "Student assignments updated successfully.",

@@ -9,6 +9,7 @@ interface StudentRow {
   id: string;
   reg_number: string;
   programme: string;
+  phone_number: string | null;
   approved_logs: string;
   pending_logs: string;
   average_log_score: string;
@@ -39,6 +40,7 @@ const HostStudentList = () => {
             <tr>
               <th>REG NUMBER</th>
               <th>PROGRAMME</th>
+              <th>PHONE</th>
               <th>LOG PERFORMANCE</th>
               <th>CURRENT HOST SCORE</th>
               <th>ACTION</th>
@@ -49,6 +51,7 @@ const HostStudentList = () => {
               <tr key={s.id}>
                 <td>{s.reg_number}</td>
                 <td>{s.programme}</td>
+                <td>{s.phone_number || '—'}</td>
                 <td>
                   {parseFloat(s.average_log_score).toFixed(2)} / 20
                   <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
@@ -70,7 +73,7 @@ const HostStudentList = () => {
             ))}
             {students.length === 0 && (
               <tr>
-                <td colSpan={5} className="empty-state">No students assigned yet.</td>
+                <td colSpan={6} className="empty-state">No students assigned yet.</td>
               </tr>
             )}
           </tbody>

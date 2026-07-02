@@ -46,6 +46,7 @@ CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email           VARCHAR(255) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
+    phone_number    VARCHAR(30),
     role            user_role NOT NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
@@ -181,6 +182,22 @@ CREATE TABLE audit_trails (
 );
 
 -- ============================================================
+-- 11. NOTIFICATIONS
+-- ============================================================
+
+CREATE TABLE notifications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipient_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    actor_id        UUID REFERENCES users(id) ON DELETE SET NULL,
+    type            VARCHAR(60) NOT NULL,
+    title           VARCHAR(150) NOT NULL,
+    message         TEXT NOT NULL,
+    is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    read_at         TIMESTAMP
+);
+
+-- ============================================================
 -- INDEXES (performance)
 -- ============================================================
 
@@ -195,6 +212,9 @@ CREATE INDEX idx_offline_sync_queue_status ON offline_sync_queue(status);
 
 -- Speed up audit trail lookups by entry
 CREATE INDEX idx_audit_trails_entry_id ON audit_trails(entry_id);
+
+-- Speed up unread notification checks
+CREATE INDEX idx_notifications_recipient_unread ON notifications(recipient_id, is_read, created_at DESC);
 
 -- Speed up student lookups by reg number
 CREATE INDEX idx_students_reg_number ON students(reg_number);

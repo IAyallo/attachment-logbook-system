@@ -19,6 +19,7 @@ import HostAssessmentForm from "./pages/HostAssessmentForm";
 import StudentReport from "./pages/StudentReport";
 import StudentGrade from "./pages/StudentGrade";
 import RoleReports from "./pages/RoleReports";
+import NotificationsPage from "./pages/NotificationsPage";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -65,6 +66,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/student/notifications"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/supervisor"
         element={
           <ProtectedRoute allowedRole="host_supervisor">
@@ -85,6 +94,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="host_supervisor">
             <RoleReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/supervisor/notifications"
+        element={
+          <ProtectedRoute allowedRole="host_supervisor">
+            <NotificationsPage />
           </ProtectedRoute>
         }
       />
@@ -117,6 +134,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="faculty_supervisor">
             <RoleReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/faculty/notifications"
+        element={
+          <ProtectedRoute allowedRole="faculty_supervisor">
+            <NotificationsPage />
           </ProtectedRoute>
         }
       />
@@ -189,6 +214,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <RoleReports />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/notifications"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <NotificationsPage />
           </ProtectedRoute>
         }
       />

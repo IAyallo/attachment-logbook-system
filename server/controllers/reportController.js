@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { createNotification } = require('../utils/notifications');
 
 const inferredCategorySql = `
     CASE
@@ -215,6 +216,24 @@ const gradeReport = async (req, res) => {
             message: 'Report graded successfully.',
             report: result.rows[0]
         });
+
+        const recipient = await pool.query(
+            `SELECT u.id AS user_id
+             FROM students s
+             JOIN users u ON s.user_id = u.id
+             WHERE s.id = $1`,
+            [result.rows[0].student_id]
+        );
+
+        if (recipient.rows.length > 0) {
+            await createNotification({
+                recipientId: recipient.rows[0].user_id,
+                actorId: user_id,
+                type: 'report_graded',
+                title: 'Composite Report Graded',
+                message: `Your composite report was graded (${marks}/50).`,
+            });
+        }
 
     } catch (err) {
         console.error('Grade report error:', err);

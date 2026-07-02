@@ -30,6 +30,9 @@ const SupervisorLayout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/supervisor/reports" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Reports
           </NavLink>
+          <NavLink to="/supervisor/notifications" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Notifications
+          </NavLink>
         </nav>
 
         <button className="logout-btn" onClick={logout}>Logout</button>

@@ -27,6 +27,9 @@ const FacultyLayout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/faculty/analytics" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Analytics Reports
           </NavLink>
+          <NavLink to="/faculty/notifications" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Notifications
+          </NavLink>
         </nav>
 
         <button className="logout-btn" onClick={logout}>Logout</button>

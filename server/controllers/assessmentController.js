@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { createNotification } = require('../utils/notifications');
 
 // GET /api/assessments/students — faculty supervisor views their assigned students
 const getMyStudents = async (req, res) => {
@@ -14,8 +15,10 @@ const getMyStudents = async (req, res) => {
 
         const result = await pool.query(
             `SELECT s.id, s.reg_number, s.programme, s.attachment_start, s.attachment_end,
+                    u.phone_number,
                     af.id AS assessment_id, af.status AS assessment_status
              FROM students s
+             JOIN users u ON s.user_id = u.id
              LEFT JOIN assessment_forms af ON af.student_id = s.id AND af.form_type = 'mid_term'
              WHERE s.faculty_supervisor_id = $1
              ORDER BY s.reg_number ASC`,
@@ -76,6 +79,24 @@ const createAssessment = async (req, res) => {
             message: 'Assessment submitted successfully.',
             assessment: result.rows[0]
         });
+
+        const recipient = await pool.query(
+            `SELECT u.id AS user_id
+             FROM students s
+             JOIN users u ON s.user_id = u.id
+             WHERE s.id = $1`,
+            [student_id]
+        );
+
+        if (recipient.rows.length > 0) {
+            await createNotification({
+                recipientId: recipient.rows[0].user_id,
+                actorId: user_id,
+                type: 'faculty_assessment',
+                title: 'Faculty Assessment Submitted',
+                message: `Your faculty supervisor submitted your assessment (${faculty_marks}/30).`,
+            });
+        }
 
     } catch (err) {
         console.error('Create assessment error:', err);

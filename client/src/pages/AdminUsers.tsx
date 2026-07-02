@@ -8,6 +8,7 @@ interface UserRow {
   id: string;
   email: string;
   full_name: string;
+  phone_number: string | null;
   role: string;
   created_at: string;
   reg_number: string | null;
@@ -24,6 +25,7 @@ const AdminUsers = () => {
   const [showForm, setShowForm] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('student');
   const [regNumber, setRegNumber] = useState('');
@@ -83,12 +85,14 @@ const AdminUsers = () => {
         password,
         role,
         full_name: fullName,
+        phone_number: phoneNumber.trim() || undefined,
         reg_number: role === 'student' ? regNumber.trim() : undefined,
         programme: role === 'student' ? programme : undefined,
       });
       setSuccess(`User "${fullName}" created successfully.`);
       setFullName('');
       setEmail('');
+      setPhoneNumber('');
       setPassword('');
       setRole('student');
       setRegNumber('');
@@ -132,12 +136,12 @@ const AdminUsers = () => {
 
   const handleDownloadTemplate = () => {
     const template = [
-      'full_name,email,password,role,reg_number,programme',
-      'Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,138701,WBL',
-      'Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,138702,SBL',
-      'Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,,',
-      'Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,,',
-      'System Admin,admin@strathmore.edu,Passw0rd!,admin,,',
+      'full_name,email,password,role,phone_number,reg_number,programme',
+      'Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,+254712345678,138701,WBL',
+      'Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,+254723456789,138702,SBL',
+      'Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,+254734567890,,',
+      'Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,+254745678901,,',
+      'System Admin,admin@strathmore.edu,Passw0rd!,admin,+254756789012,,',
     ].join('\n');
 
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
@@ -197,6 +201,12 @@ const AdminUsers = () => {
                 <label>EMAIL</label>
                 <input type="email" placeholder="user@strathmore.edu" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
+              <div className="form-group">
+                <label>PHONE NUMBER</label>
+                <input type="text" placeholder="e.g. +254712345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
+              </div>
+            </div>
+            <div className="form-row">
               <div className="form-group">
                 <label>TEMPORARY PASSWORD</label>
                 <input type="text" placeholder="Set a temporary password" value={password} onChange={(e) => setPassword(e.target.value)} required />
@@ -296,6 +306,7 @@ const AdminUsers = () => {
             <tr>
               <th>NAME</th>
               <th>EMAIL</th>
+              <th>PHONE</th>
               <th>ROLE</th>
               <th>JOINED</th>
             </tr>
@@ -305,12 +316,13 @@ const AdminUsers = () => {
               <tr key={u.id}>
                 <td>{u.full_name || '—'} {u.reg_number && <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>({u.reg_number})</span>}</td>
                 <td>{u.email}</td>
+                <td>{u.phone_number || '—'}</td>
                 <td>{roleLabel(u.role)}</td>
                 <td>{new Date(u.created_at).toLocaleDateString()}</td>
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={4} className="empty-state">No users found.</td></tr>
+              <tr><td colSpan={5} className="empty-state">No users found.</td></tr>
             )}
           </tbody>
         </table>

@@ -36,6 +36,9 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/admin/reports" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Reports
           </NavLink>
+          <NavLink to="/admin/notifications" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Notifications
+          </NavLink>
         </nav>
 
         <button className="logout-btn" onClick={logout}>Logout</button>
