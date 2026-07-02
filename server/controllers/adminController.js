@@ -2,18 +2,18 @@ const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const { createNotification } = require("../utils/notifications");
 
+const phoneRegex = /^07\d{8}$/;
+
 // GET /api/admin/overview — dashboard stats
 const getOverview = async (req, res) => {
   try {
     const totalHours = await pool.query(
-      `SELECT COALESCE(SUM(hours_logged), 0) AS total FROM logbook_entries WHERE status = 'approved'`,
-    );
-
-    const syncStats = await pool.query(
-      `SELECT 
-                COUNT(*) FILTER (WHERE sync_status = 'synced') AS synced,
-                COUNT(*) AS total
-             FROM logbook_entries`,
+      `SELECT COALESCE(SUM(le.hours_logged), 0) AS total
+       FROM logbook_entries le
+       JOIN students s ON le.student_id = s.id
+       WHERE le.status = 'approved'
+         AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+         AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)`,
     );
 
     const activeSupervisors = await pool.query(
@@ -24,13 +24,8 @@ const getOverview = async (req, res) => {
       `SELECT COUNT(*) AS count FROM institutions`,
     );
 
-    const synced = parseInt(syncStats.rows[0].synced);
-    const total = parseInt(syncStats.rows[0].total);
-    const syncRate = total > 0 ? ((synced / total) * 100).toFixed(2) : "100.00";
-
     res.status(200).json({
       total_hours_logged: parseFloat(totalHours.rows[0].total),
-      sync_success_rate: syncRate,
       active_supervisors: parseInt(activeSupervisors.rows[0].count),
       total_institutions: parseInt(institutionCount.rows[0].count),
     });
@@ -61,13 +56,19 @@ const getInstitutions = async (req, res) => {
 
 // POST /api/admin/institutions — register a new institution
 const createInstitution = async (req, res) => {
-  const { name, address, contact_person, contact_email } = req.body;
+  const { name, address, contact_person, contact_email, contact_phone } = req.body;
+
+  if (!contact_phone || !phoneRegex.test(contact_phone)) {
+    return res.status(400).json({
+      message: "Institution contact phone is required and must be in format 07XXXXXXXX.",
+    });
+  }
 
   try {
     const result = await pool.query(
-      `INSERT INTO institutions (name, address, contact_person, contact_email)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, address, contact_person, contact_email],
+      `INSERT INTO institutions (name, address, contact_person, contact_email, contact_phone)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [name, address, contact_person, contact_email, contact_phone],
     );
 
     res.status(201).json({
@@ -82,7 +83,13 @@ const createInstitution = async (req, res) => {
 
 // POST /api/admin/users — onboard a new user (any role)
 const createUser = async (req, res) => {
-  const { email, password, role, full_name, phone_number, reg_number, programme } = req.body;
+  const { email, password, role, full_name, phone_number, reg_number, programme, institution_id } = req.body;
+
+  if (!phone_number || !phoneRegex.test(phone_number)) {
+    return res.status(400).json({
+      message: "Phone number is required and must be in format 07XXXXXXXX.",
+    });
+  }
 
   if (role === "student" && !reg_number) {
     return res
@@ -91,6 +98,9 @@ const createUser = async (req, res) => {
   }
   if (role === "student" && !["WBL", "SBL"].includes(programme)) {
     return res.status(400).json({ message: "Programme must be WBL or SBL." });
+  }
+  if (role === "student" && !institution_id) {
+    return res.status(400).json({ message: "Institution is required for students." });
   }
 
   const client = await pool.connect();
@@ -107,6 +117,15 @@ const createUser = async (req, res) => {
     }
 
     if (role === "student") {
+      const institutionCheck = await client.query(
+        "SELECT id FROM institutions WHERE id = $1",
+        [institution_id],
+      );
+      if (institutionCheck.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "Invalid institution selected." });
+      }
+
       const existingReg = await client.query(
         "SELECT id FROM students WHERE reg_number = $1",
         [reg_number],
@@ -131,9 +150,9 @@ const createUser = async (req, res) => {
 
     if (role === "student") {
       const studentResult = await client.query(
-        `INSERT INTO students (user_id, reg_number, programme)
-         VALUES ($1, $2, $3) RETURNING reg_number, programme`,
-        [user.id, reg_number, programme],
+        `INSERT INTO students (user_id, institution_id, reg_number, programme)
+         VALUES ($1, $2, $3, $4) RETURNING reg_number, programme, institution_id`,
+        [user.id, institution_id, reg_number, programme],
       );
       student = studentResult.rows[0];
     }
@@ -175,10 +194,12 @@ const getUsers = async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.email, u.full_name, u.phone_number, u.role, u.created_at,
                     s.reg_number, 
+              i.name AS institution_name,
                     hs.job_title AS host_job_title,
                     fs.department AS faculty_department
              FROM users u
              LEFT JOIN students s ON s.user_id = u.id
+            LEFT JOIN institutions i ON s.institution_id = i.id
              LEFT JOIN host_supervisors hs ON hs.user_id = u.id
              LEFT JOIN faculty_supervisors fs ON fs.user_id = u.id
              ORDER BY u.created_at DESC`,
@@ -281,6 +302,7 @@ const bulkCreateUsers = async (req, res) => {
       const password = record.password;
       const role = record.role?.trim();
       const phone_number = record.phone_number?.trim() || null;
+      const institution_name = record.institution_name?.trim();
       const reg_number = record.reg_number?.trim();
       const programme = normalizeProgramme(record.programme);
 
@@ -288,6 +310,14 @@ const bulkCreateUsers = async (req, res) => {
         results.failed.push({
           email: email || "unknown",
           reason: "Missing required fields",
+        });
+        continue;
+      }
+
+      if (!phone_number || !phoneRegex.test(phone_number)) {
+        results.failed.push({
+          email,
+          reason: "Phone number is required and must be in format 07XXXXXXXX.",
         });
         continue;
       }
@@ -301,6 +331,14 @@ const bulkCreateUsers = async (req, res) => {
       }
 
       if (role === "student") {
+        if (!institution_name) {
+          results.failed.push({
+            email,
+            reason: "Missing institution_name for student.",
+          });
+          continue;
+        }
+
         if (!reg_number) {
           results.failed.push({
             email,
@@ -320,6 +358,20 @@ const bulkCreateUsers = async (req, res) => {
 
       try {
         await client.query("BEGIN");
+
+        let resolvedInstitutionId = null;
+        if (role === "student") {
+          const institution = await client.query(
+            "SELECT id FROM institutions WHERE LOWER(name) = LOWER($1)",
+            [institution_name],
+          );
+          if (institution.rows.length === 0) {
+            await client.query("ROLLBACK");
+            results.failed.push({ email, reason: `Institution '${institution_name}' not found` });
+            continue;
+          }
+          resolvedInstitutionId = institution.rows[0].id;
+        }
 
         const existing = await client.query(
           "SELECT id FROM users WHERE email = $1",
@@ -354,10 +406,10 @@ const bulkCreateUsers = async (req, res) => {
 
         if (role === "student") {
           const studentResult = await client.query(
-            `INSERT INTO students (user_id, reg_number, programme)
-             VALUES ($1, $2, $3)
-             RETURNING reg_number, programme`,
-            [createdUser.id, reg_number, programme],
+            `INSERT INTO students (user_id, institution_id, reg_number, programme)
+             VALUES ($1, $2, $3, $4)
+             RETURNING reg_number, programme, institution_id`,
+            [createdUser.id, resolvedInstitutionId, reg_number, programme],
           );
 
           await client.query("COMMIT");
@@ -389,6 +441,52 @@ const bulkCreateUsers = async (req, res) => {
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
+  }
+};
+
+// PATCH /api/admin/users/:userId/reset-password — admin resets user password
+const resetUserPassword = async (req, res) => {
+  const { userId } = req.params;
+  const { temporary_password } = req.body;
+  const actorId = req.user.id;
+
+  if (!temporary_password || temporary_password.trim().length < 8) {
+    return res.status(400).json({
+      message: "Temporary password is required and must be at least 8 characters.",
+    });
+  }
+
+  try {
+    const targetUser = await pool.query(
+      "SELECT id, email, full_name, role FROM users WHERE id = $1",
+      [userId],
+    );
+
+    if (targetUser.rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const password_hash = await bcrypt.hash(temporary_password.trim(), 10);
+
+    await pool.query(
+      "UPDATE users SET password_hash = $1, must_change_password = TRUE, updated_at = NOW() WHERE id = $2",
+      [password_hash, userId],
+    );
+
+    await createNotification({
+      recipientId: userId,
+      actorId,
+      type: "password_reset",
+      title: "Password Reset",
+      message: "Your password was reset by admin. Use your temporary password and then update it.",
+    });
+
+    res.status(200).json({
+      message: `Password reset successfully for ${targetUser.rows[0].full_name || targetUser.rows[0].email}.`,
+    });
+  } catch (err) {
+    console.error("Reset user password error:", err);
+    res.status(500).json({ message: "Server error." });
   }
 };
 
@@ -452,7 +550,7 @@ const getAssignments = async (req, res) => {
 // PATCH /api/admin/assignments/:studentId — assign/reassign student supervisors
 const updateAssignment = async (req, res) => {
   const { studentId } = req.params;
-  const { host_supervisor_id, faculty_supervisor_id } = req.body;
+  const { faculty_supervisor_id } = req.body;
   const actorId = req.user.id;
 
   const client = await pool.connect();
@@ -472,17 +570,6 @@ const updateAssignment = async (req, res) => {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    if (host_supervisor_id) {
-      const host = await client.query(
-        `SELECT id FROM host_supervisors WHERE id = $1`,
-        [host_supervisor_id],
-      );
-      if (host.rows.length === 0) {
-        await client.query("ROLLBACK");
-        return res.status(400).json({ message: "Invalid host supervisor selected." });
-      }
-    }
-
     if (faculty_supervisor_id) {
       const faculty = await client.query(
         `SELECT id FROM faculty_supervisors WHERE id = $1`,
@@ -496,23 +583,13 @@ const updateAssignment = async (req, res) => {
 
     const result = await client.query(
       `UPDATE students
-       SET host_supervisor_id = $1,
-           faculty_supervisor_id = $2
-       WHERE id = $3
+       SET faculty_supervisor_id = $1
+       WHERE id = $2
        RETURNING id, reg_number, programme, host_supervisor_id, faculty_supervisor_id`,
-      [host_supervisor_id || null, faculty_supervisor_id || null, studentId],
+      [faculty_supervisor_id || null, studentId],
     );
 
-    let hostUserId = null;
     let facultyUserId = null;
-
-    if (host_supervisor_id) {
-      const hostUser = await client.query(
-        `SELECT user_id FROM host_supervisors WHERE id = $1`,
-        [host_supervisor_id],
-      );
-      hostUserId = hostUser.rows[0]?.user_id || null;
-    }
 
     if (faculty_supervisor_id) {
       const facultyUser = await client.query(
@@ -529,18 +606,8 @@ const updateAssignment = async (req, res) => {
       actorId,
       type: "assignment_updated",
       title: "Supervisor Assignments Updated",
-      message: `Your host/faculty supervisor assignments were updated by admin (${student.rows[0].reg_number}).`,
+      message: `Your faculty supervisor assignment was updated by admin (${student.rows[0].reg_number}).`,
     });
-
-    if (hostUserId) {
-      await createNotification({
-        recipientId: hostUserId,
-        actorId,
-        type: "student_assigned",
-        title: "Student Assigned",
-        message: `A new student (${student.rows[0].reg_number}) was assigned to you as host supervisor.`,
-      });
-    }
 
     if (facultyUserId) {
       await createNotification({
@@ -574,6 +641,7 @@ module.exports = {
   getUsers,
   getFinalGrade,
   bulkCreateUsers,
+  resetUserPassword,
   getAssignmentOptions,
   getAssignments,
   updateAssignment,

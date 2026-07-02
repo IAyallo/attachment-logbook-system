@@ -10,7 +10,6 @@ interface LogEntry {
   category: string;
   hours_logged: string;
   status: string;
-  sync_status: string;
   entry_date: string;
   feedback: string | null;
   marks: string | null;

@@ -1,4 +1,5 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
+import type { FormEvent } from 'react';
 import api from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 import './AdminDashboard.css';
@@ -9,6 +10,7 @@ interface Institution {
   address: string;
   contact_person: string;
   contact_email: string;
+  contact_phone: string | null;
   assigned_students: string;
 }
 
@@ -19,6 +21,7 @@ const AdminInstitutions = () => {
   const [address, setAddress] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,7 +35,22 @@ const AdminInstitutions = () => {
   };
 
   useEffect(() => {
-    fetchInstitutions(); // eslint-disable-next-line react-hooks/exhaustive-deps
+    let isMounted = true;
+
+    api
+      .get('/admin/institutions')
+      .then((res) => {
+        if (isMounted) {
+          setInstitutions(res.data.institutions);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch institutions', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleCreate = async (e: FormEvent) => {
@@ -46,11 +64,13 @@ const AdminInstitutions = () => {
         address,
         contact_person: contactPerson,
         contact_email: contactEmail,
+        contact_phone: contactPhone,
       });
       setName('');
       setAddress('');
       setContactPerson('');
       setContactEmail('');
+      setContactPhone('');
       setShowForm(false);
       fetchInstitutions();
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -96,6 +116,20 @@ const AdminInstitutions = () => {
                 <input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
               </div>
             </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label>CONTACT PHONE</label>
+                <input
+                  type="text"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                  placeholder="e.g. 0712345678"
+                  pattern="07[0-9]{8}"
+                  title="Phone number must be in format 07XXXXXXXX"
+                  required
+                />
+              </div>
+            </div>
             {error && <div className="error-message">{error}</div>}
             <button type="submit" className="btn-primary" disabled={creating}>
               {creating ? 'Registering...' : 'Register Institution'}
@@ -120,7 +154,13 @@ const AdminInstitutions = () => {
                   <div className="inst-name">{inst.name}</div>
                   <div className="inst-address">{inst.address}</div>
                 </td>
-                <td>{inst.contact_person} <br /><span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{inst.contact_email}</span></td>
+                <td>
+                  {inst.contact_person}
+                  <br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{inst.contact_email}</span>
+                  <br />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{inst.contact_phone || '—'}</span>
+                </td>
                 <td>{inst.assigned_students}</td>
               </tr>
             ))}

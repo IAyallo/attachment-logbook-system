@@ -46,7 +46,8 @@ CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email           VARCHAR(255) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
-    phone_number    VARCHAR(30),
+    phone_number    VARCHAR(30) NOT NULL CHECK (phone_number ~ '^07[0-9]{8}$'),
+    must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     role            user_role NOT NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
@@ -62,6 +63,7 @@ CREATE TABLE institutions (
     address         TEXT,
     contact_person  VARCHAR(100),
     contact_email   VARCHAR(100),
+    contact_phone   VARCHAR(30) NOT NULL CHECK (contact_phone ~ '^07[0-9]{8}$'),
     registered_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -105,7 +107,7 @@ CREATE TABLE administrators (
 CREATE TABLE students (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    institution_id      UUID REFERENCES institutions(id) ON DELETE SET NULL,
+    institution_id      UUID NOT NULL REFERENCES institutions(id) ON DELETE RESTRICT,
     host_supervisor_id  UUID REFERENCES host_supervisors(id) ON DELETE SET NULL,
     faculty_supervisor_id UUID REFERENCES faculty_supervisors(id) ON DELETE SET NULL,
     reg_number          VARCHAR(20) NOT NULL UNIQUE,
@@ -198,6 +200,85 @@ CREATE TABLE notifications (
 );
 
 -- ============================================================
+-- 12. ATTACHMENT APPLICATIONS
+-- ============================================================
+
+CREATE TABLE attachment_applications (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id                  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    course                      VARCHAR(150) NOT NULL,
+    attachment_type             VARCHAR(50) NOT NULL,
+    attachment_period           VARCHAR(120),
+    start_date                  DATE NOT NULL,
+    end_date                    DATE NOT NULL,
+    hours_per_day               INTEGER NOT NULL CHECK (hours_per_day > 0 AND hours_per_day <= 24),
+    days_per_week               JSONB NOT NULL DEFAULT '[]'::jsonb,
+    institution_mode            VARCHAR(20) NOT NULL CHECK (institution_mode IN ('existing', 'new')),
+    existing_institution_id     UUID REFERENCES institutions(id) ON DELETE SET NULL,
+    organisation_name           VARCHAR(180),
+    organisation_description    TEXT,
+    organisation_country        VARCHAR(120),
+    organisation_county         VARCHAR(120),
+    organisation_constituency   VARCHAR(120),
+    supervisor_name             VARCHAR(120) NOT NULL,
+    supervisor_designation      VARCHAR(120) NOT NULL,
+    supervisor_email            VARCHAR(255) NOT NULL,
+    supervisor_phone            VARCHAR(30) NOT NULL CHECK (supervisor_phone ~ '^07[0-9]{8}$'),
+    key_activities              JSONB NOT NULL DEFAULT '[]'::jsonb,
+    skills_to_develop           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    training_opportunities      JSONB NOT NULL DEFAULT '[]'::jsonb,
+    status                      VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    admin_notes                 TEXT,
+    reviewed_by                 UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at                 TIMESTAMP,
+    approved_institution_id     UUID REFERENCES institutions(id) ON DELETE SET NULL,
+    onboarded_host_supervisor_id UUID REFERENCES host_supervisors(id) ON DELETE SET NULL,
+    created_at                  TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at                  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 13. STUDENT ATTACHMENT HISTORY (PREVIOUS ATTACHMENTS)
+-- ============================================================
+
+CREATE TABLE student_attachment_history (
+    id                          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id                  UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    institution_id              UUID REFERENCES institutions(id) ON DELETE SET NULL,
+    host_supervisor_id          UUID REFERENCES host_supervisors(id) ON DELETE SET NULL,
+    attachment_start            DATE,
+    attachment_end              DATE,
+    attachment_type             VARCHAR(50),
+    attachment_period           VARCHAR(120),
+    hours_per_day               INTEGER,
+    days_per_week               JSONB,
+    organisation_name           VARCHAR(180),
+    organisation_description    TEXT,
+    organisation_country        VARCHAR(120),
+    organisation_county         VARCHAR(120),
+    organisation_constituency   VARCHAR(120),
+    internship_objectives       JSONB,
+    internship_skills           JSONB,
+    internship_training_opportunities JSONB,
+    host_supervisor_name        VARCHAR(120),
+    host_supervisor_designation VARCHAR(120),
+    host_supervisor_email       VARCHAR(255),
+    host_supervisor_phone       VARCHAR(30),
+    faculty_supervisor_name     VARCHAR(120),
+    faculty_supervisor_email    VARCHAR(255),
+    faculty_date_allocated      TIMESTAMP,
+    host_score                  DECIMAL(5,2),
+    faculty_score               DECIMAL(5,2),
+    report_score                DECIMAL(5,2),
+    total_grade                 DECIMAL(6,2),
+    status_message              TEXT,
+    status                      VARCHAR(20) NOT NULL CHECK (status IN ('halted', 'completed')),
+    halt_reason                 TEXT,
+    replaced_by_application_id  UUID REFERENCES attachment_applications(id) ON DELETE SET NULL,
+    created_at                  TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- INDEXES (performance)
 -- ============================================================
 
@@ -215,6 +296,14 @@ CREATE INDEX idx_audit_trails_entry_id ON audit_trails(entry_id);
 
 -- Speed up unread notification checks
 CREATE INDEX idx_notifications_recipient_unread ON notifications(recipient_id, is_read, created_at DESC);
+
+-- Speed up application review queues
+CREATE INDEX idx_attachment_applications_status_created_at ON attachment_applications(status, created_at);
+CREATE INDEX idx_attachment_applications_student_status ON attachment_applications(student_id, status);
+
+-- Speed up previous attachment lookups per student
+CREATE INDEX idx_student_attachment_history_student_created_at
+ON student_attachment_history(student_id, created_at DESC);
 
 -- Speed up student lookups by reg number
 CREATE INDEX idx_students_reg_number ON students(reg_number);

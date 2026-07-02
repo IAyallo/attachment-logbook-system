@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { createNotification } = require('../utils/notifications');
 
 // POST /api/auth/register
 const register = async (req, res) => {
@@ -100,7 +101,14 @@ const login = async (req, res) => {
         res.status(200).json({
             message: 'Login successful.',
             token,
-            user: { id: user.id, email: user.email, role: user.role, full_name: user.full_name, ...profile }
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                full_name: user.full_name,
+                must_change_password: Boolean(user.must_change_password),
+                ...profile,
+            }
         });
 
     } catch (err) {
@@ -109,4 +117,96 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { register, login };
+// POST /api/auth/change-password
+const changePassword = async (req, res) => {
+    const userId = req.user.id;
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+        return res.status(400).json({ message: 'Current and new password are required.' });
+    }
+
+    if (new_password.length < 8) {
+        return res.status(400).json({ message: 'New password must be at least 8 characters.' });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT id, password_hash FROM users WHERE id = $1',
+            [userId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+
+        const validPassword = await bcrypt.compare(current_password, result.rows[0].password_hash);
+        if (!validPassword) {
+            return res.status(401).json({ message: 'Current password is incorrect.' });
+        }
+
+        const newHash = await bcrypt.hash(new_password, 10);
+        await pool.query(
+            `UPDATE users
+             SET password_hash = $1,
+                 must_change_password = FALSE,
+                 updated_at = NOW()
+             WHERE id = $2`,
+            [newHash, userId]
+        );
+
+        return res.status(200).json({ message: 'Password changed successfully.' });
+    } catch (err) {
+        console.error('Change password error:', err);
+        return res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+// POST /api/auth/forgot-password-request
+const forgotPasswordRequest = async (req, res) => {
+    const { identifier } = req.body;
+
+    if (!identifier || !identifier.trim()) {
+        return res.status(400).json({ message: 'Email or registration number is required.' });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT u.id, u.email, u.full_name, u.role
+             FROM users u
+             WHERE u.email = $1
+             UNION
+             SELECT u.id, u.email, u.full_name, u.role
+             FROM users u
+             JOIN students s ON s.user_id = u.id
+             WHERE s.reg_number = $1`,
+            [identifier.trim()]
+        );
+
+        if (result.rows.length > 0) {
+            const requestedUser = result.rows[0];
+            const admins = await pool.query(
+                `SELECT id FROM users WHERE role = 'admin'`
+            );
+
+            for (const admin of admins.rows) {
+                await createNotification({
+                    recipientId: admin.id,
+                    actorId: requestedUser.id,
+                    type: 'password_reset_request',
+                    title: 'Password Reset Requested',
+                    message: `${requestedUser.full_name || requestedUser.email} requested a password reset.`,
+                });
+            }
+        }
+
+        return res.status(200).json({
+            message: 'If the account exists, your request has been sent to administrators.',
+        });
+    } catch (err) {
+        console.error('Forgot password request error:', err);
+        return res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+module.exports = { register, login, forgotPasswordRequest, changePassword };

@@ -36,20 +36,36 @@ const StudentLayout = ({ children }: { children: ReactNode }) => {
             Daily Logs
           </NavLink>
           <NavLink
-            to="/student/sync-queue"
-            className={({ isActive }) =>
-              isActive ? "nav-item active" : "nav-item"
-            }
-          >
-            Sync Queue
-          </NavLink>
-          <NavLink
             to="/student/report"
             className={({ isActive }) =>
               isActive ? "nav-item active" : "nav-item"
             }
           >
             Composite Report
+          </NavLink>
+          <NavLink
+            to="/student/apply"
+            className={({ isActive }) =>
+              isActive ? "nav-item active" : "nav-item"
+            }
+          >
+            Apply for Attachment
+          </NavLink>
+          <NavLink
+            to="/student/institutions"
+            className={({ isActive }) =>
+              isActive ? "nav-item active" : "nav-item"
+            }
+          >
+            Approved Institutions
+          </NavLink>
+          <NavLink
+            to="/student/previous-attachments"
+            className={({ isActive }) =>
+              isActive ? "nav-item active" : "nav-item"
+            }
+          >
+            Previous Attachments
           </NavLink>
           <NavLink
             to="/student/notifications"

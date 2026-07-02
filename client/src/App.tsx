@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
@@ -13,13 +13,17 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminAssignments from "./pages/AdminAssignments";
 import AdminAuditTrails from "./pages/AdminAuditTrails";
 import StudentLogs from "./pages/StudentLogs";
-import StudentSyncQueue from "./pages/StudentSyncQueue";
 import HostStudentList from "./pages/HostStudentList";
 import HostAssessmentForm from "./pages/HostAssessmentForm";
 import StudentReport from "./pages/StudentReport";
 import StudentGrade from "./pages/StudentGrade";
 import RoleReports from "./pages/RoleReports";
 import NotificationsPage from "./pages/NotificationsPage";
+import StudentApplicationForm from "./pages/StudentApplicationForm";
+import StudentInstitutions from "./pages/StudentInstitutions";
+import AdminApplications from "./pages/AdminApplications";
+import StudentPreviousAttachments from "./pages/StudentPreviousAttachments";
+import ChangePassword from "./pages/ChangePassword";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -28,9 +32,13 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.must_change_password && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
   if (allowedRole && user.role !== allowedRole)
     return <Navigate to="/login" replace />;
 
@@ -41,6 +49,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePassword />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/student"
         element={
@@ -58,18 +74,34 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/student/sync-queue"
-        element={
-          <ProtectedRoute allowedRole="student">
-            <StudentSyncQueue />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/student/notifications"
         element={
           <ProtectedRoute allowedRole="student">
             <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/apply"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentApplicationForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/institutions"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentInstitutions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/student/previous-attachments"
+        element={
+          <ProtectedRoute allowedRole="student">
+            <StudentPreviousAttachments />
           </ProtectedRoute>
         }
       />
@@ -222,6 +254,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRole="admin">
             <NotificationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/applications"
+        element={
+          <ProtectedRoute allowedRole="admin">
+            <AdminApplications />
           </ProtectedRoute>
         }
       />

@@ -15,13 +15,6 @@ interface AssignmentRow {
   faculty_supervisor_name: string | null;
 }
 
-interface HostOption {
-  id: string;
-  full_name: string;
-  email: string;
-  institution_name: string | null;
-}
-
 interface FacultyOption {
   id: string;
   full_name: string;
@@ -30,13 +23,11 @@ interface FacultyOption {
 }
 
 interface DraftAssignment {
-  host_supervisor_id: string;
   faculty_supervisor_id: string;
 }
 
 const AdminAssignments = () => {
   const [rows, setRows] = useState<AssignmentRow[]>([]);
-  const [hostOptions, setHostOptions] = useState<HostOption[]>([]);
   const [facultyOptions, setFacultyOptions] = useState<FacultyOption[]>([]);
   const [drafts, setDrafts] = useState<Record<string, DraftAssignment>>({});
   const [savingStudentId, setSavingStudentId] = useState<string | null>(null);
@@ -47,7 +38,6 @@ const AdminAssignments = () => {
     const nextDrafts: Record<string, DraftAssignment> = {};
     assignmentRows.forEach((row) => {
       nextDrafts[row.id] = {
-        host_supervisor_id: row.host_supervisor_id || '',
         faculty_supervisor_id: row.faculty_supervisor_id || '',
       };
     });
@@ -64,7 +54,6 @@ const AdminAssignments = () => {
       const assignmentRows = assignmentsRes.data.assignments as AssignmentRow[];
       setRows(assignmentRows);
       initializeDrafts(assignmentRows);
-      setHostOptions(optionsRes.data.host_supervisors || []);
       setFacultyOptions(optionsRes.data.faculty_supervisors || []);
     } catch (err) {
       console.error('Failed to fetch assignment data', err);
@@ -77,7 +66,7 @@ const AdminAssignments = () => {
   }, []);
 
   const pendingCount = useMemo(() => {
-    return rows.filter((row) => !row.host_supervisor_id || !row.faculty_supervisor_id).length;
+    return rows.filter((row) => !row.faculty_supervisor_id).length;
   }, [rows]);
 
   const updateDraft = (
@@ -105,7 +94,6 @@ const AdminAssignments = () => {
 
     try {
       await api.patch(`/admin/assignments/${studentId}`, {
-        host_supervisor_id: draft.host_supervisor_id || null,
         faculty_supervisor_id: draft.faculty_supervisor_id || null,
       });
 
@@ -124,7 +112,7 @@ const AdminAssignments = () => {
         <div>
           <h1>Assignments</h1>
           <p className="subtitle">
-            Assign host and faculty supervisors to students from one dedicated workflow.
+            Assign faculty supervisors to students from one dedicated workflow.
           </p>
         </div>
       </div>
@@ -163,17 +151,7 @@ const AdminAssignments = () => {
                 </td>
                 <td>{row.programme}</td>
                 <td>
-                  <select
-                    value={drafts[row.id]?.host_supervisor_id || ''}
-                    onChange={(event) => updateDraft(row.id, 'host_supervisor_id', event)}
-                  >
-                    <option value="">Unassigned</option>
-                    {hostOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.full_name} {option.institution_name ? `(${option.institution_name})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  {row.host_supervisor_name || 'Unassigned'}
                 </td>
                 <td>
                   <select

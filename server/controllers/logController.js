@@ -49,8 +49,8 @@ const createLog = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO logbook_entries 
-                (student_id, title, description, category, hours_logged, entry_date, status, sync_status)
-             VALUES ($1, $2, $3, $4, $5, $6, 'draft', 'pending')
+                (student_id, title, description, category, hours_logged, entry_date, status)
+             VALUES ($1, $2, $3, $4, $5, $6, 'draft')
              RETURNING *`,
       [
         student.rows[0].id,
@@ -123,7 +123,7 @@ const submitLog = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE logbook_entries 
-             SET status = 'submitted', sync_status = 'synced', submitted_at = NOW()
+             SET status = 'submitted', submitted_at = NOW()
              WHERE id = $1 AND student_id = $2 AND status = 'draft'
              RETURNING *`,
       [id, student.rows[0].id],
@@ -163,7 +163,10 @@ const getPendingLogs = async (req, res) => {
       `SELECT le.*, s.reg_number 
              FROM logbook_entries le
              JOIN students s ON le.student_id = s.id
-             WHERE s.host_supervisor_id = $1 AND le.status = 'submitted'
+             WHERE s.host_supervisor_id = $1
+               AND le.status = 'submitted'
+               AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+               AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              ORDER BY le.submitted_at ASC`,
       [supervisor.rows[0].id],
     );
@@ -209,6 +212,8 @@ const reviewLog = async (req, res) => {
              WHERE le.id = $5 
                AND le.student_id = s.id 
                AND s.host_supervisor_id = $4
+               AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+               AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
                AND le.status = 'submitted'
              RETURNING le.*`,
       [decision, feedback || null, marks || null, supervisor.rows[0].id, id],
@@ -275,7 +280,9 @@ const getHostScore = async (req, res) => {
 
     // Confirm student belongs to this supervisor
     const studentCheck = await pool.query(
-      "SELECT id FROM students WHERE id = $1 AND host_supervisor_id = $2",
+      `SELECT id, attachment_start, attachment_end
+       FROM students
+       WHERE id = $1 AND host_supervisor_id = $2`,
       [studentId, supervisor.rows[0].id],
     );
     if (studentCheck.rows.length === 0) {
@@ -284,14 +291,21 @@ const getHostScore = async (req, res) => {
         .json({ message: "This student is not assigned to you." });
     }
 
+    const attachmentStart = studentCheck.rows[0].attachment_start;
+    const attachmentEnd = studentCheck.rows[0].attachment_end;
+
     // Average of all approved log marks (already stored as out-of-20 values)
     const avgResult = await pool.query(
       `SELECT 
                 COALESCE(ROUND(AVG(marks), 2), 0) AS average_score,
                 COUNT(*) AS graded_logs_count
              FROM logbook_entries
-             WHERE student_id = $1 AND status = 'approved' AND marks IS NOT NULL`,
-      [studentId],
+             WHERE student_id = $1
+               AND status = 'approved'
+               AND marks IS NOT NULL
+               AND ($2::date IS NULL OR entry_date >= $2::date)
+               AND ($3::date IS NULL OR entry_date <= $3::date)`,
+      [studentId, attachmentStart, attachmentEnd],
     );
 
     // Check if supervisor already overrode this score
@@ -405,7 +419,10 @@ const getMyHostStudents = async (req, res) => {
                     af.host_marks AS finalized_host_marks
              FROM students s
              JOIN users u ON s.user_id = u.id
-             LEFT JOIN logbook_entries le ON le.student_id = s.id
+             LEFT JOIN logbook_entries le
+               ON le.student_id = s.id
+              AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+              AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              LEFT JOIN assessment_forms af
                ON af.student_id = s.id
               AND af.form_type = 'host_score'

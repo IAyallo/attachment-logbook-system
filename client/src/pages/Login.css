@@ -89,3 +89,38 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.forgot-password-wrapper {
+  margin-top: 16px;
+}
+
+.forgot-password-toggle {
+  width: 100%;
+  text-align: left;
+  color: var(--accent-blue);
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.forgot-password-toggle:hover {
+  text-decoration: underline;
+}
+
+.forgot-password-panel {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.success-message {
+  background-color: rgba(72, 187, 120, 0.1);
+  border: 1px solid #48bb78;
+  color: #48bb78;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}

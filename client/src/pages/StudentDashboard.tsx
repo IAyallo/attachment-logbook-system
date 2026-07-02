@@ -12,15 +12,36 @@ interface LogEntry {
   category: string;
   hours_logged: string;
   status: string;
-  sync_status: string;
   entry_date: string;
   feedback: string | null;
   marks: string | null;
 }
 
+interface CurrentAttachment {
+  attachment_start: string | null;
+  attachment_end: string | null;
+  institution_name: string | null;
+  institution_address: string | null;
+  host_supervisor_name: string | null;
+  host_supervisor_email: string | null;
+  host_supervisor_phone: string | null;
+  host_supervisor_designation: string | null;
+  faculty_supervisor_name: string | null;
+  faculty_supervisor_email: string | null;
+  faculty_department: string | null;
+  latest_approved_application: {
+    course: string | null;
+    attachment_type: string | null;
+    attachment_period: string | null;
+    hours_per_day: number | null;
+    days_per_week: string[] | null;
+  } | null;
+}
+
 const StudentDashboard = () => {
   const { user } = useAuth();
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [currentAttachment, setCurrentAttachment] = useState<CurrentAttachment | null>(null);
   const [title, setTitle] = useState("");
   const [hours, setHours] = useState("");
   const [description, setDescription] = useState("");
@@ -59,15 +80,14 @@ const StudentDashboard = () => {
   useEffect(() => {
     let isMounted = true;
 
-    api
-      .get("/logs")
-      .then((res) => {
-        if (isMounted) {
-          setEntries(res.data.entries);
-        }
+    Promise.all([api.get("/logs"), api.get('/applications/current')])
+      .then(([logsRes, currentRes]) => {
+        if (!isMounted) return;
+        setEntries(logsRes.data.entries);
+        setCurrentAttachment(currentRes.data.current_attachment || null);
       })
       .catch((err) => {
-        console.error("Failed to fetch logs", err);
+        console.error("Failed to fetch dashboard data", err);
       });
 
     return () => {
@@ -138,6 +158,52 @@ const StudentDashboard = () => {
         <p className="subtitle">
           Manage your industrial attachment progress and daily submissions.
         </p>
+
+        <div className="card" style={{ marginBottom: '20px' }}>
+          <h2>Current Attachment</h2>
+          {!currentAttachment?.attachment_start && !currentAttachment?.attachment_end ? (
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+              No active attachment details found yet. Submit and approve an attachment application to populate this section.
+            </p>
+          ) : (
+            <div className="form-row">
+              <div className="form-group">
+                <label>INSTITUTION</label>
+                <div>{currentAttachment?.institution_name || '—'}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{currentAttachment?.institution_address || ''}</div>
+              </div>
+              <div className="form-group">
+                <label>PERIOD</label>
+                <div>
+                  {currentAttachment?.attachment_start ? new Date(currentAttachment.attachment_start).toLocaleDateString() : '—'}
+                  {' '}to{' '}
+                  {currentAttachment?.attachment_end ? new Date(currentAttachment.attachment_end).toLocaleDateString() : '—'}
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                  {currentAttachment?.latest_approved_application?.attachment_type || ''}
+                  {currentAttachment?.latest_approved_application?.attachment_period ? ` • ${currentAttachment.latest_approved_application.attachment_period}` : ''}
+                </div>
+              </div>
+              <div className="form-group">
+                <label>HOST SUPERVISOR</label>
+                <div>{currentAttachment?.host_supervisor_name || 'Unassigned'}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                  {currentAttachment?.host_supervisor_designation || ''}
+                  {currentAttachment?.host_supervisor_email ? ` • ${currentAttachment.host_supervisor_email}` : ''}
+                  {currentAttachment?.host_supervisor_phone ? ` • ${currentAttachment.host_supervisor_phone}` : ''}
+                </div>
+              </div>
+              <div className="form-group">
+                <label>FACULTY SUPERVISOR</label>
+                <div>{currentAttachment?.faculty_supervisor_name || 'Unassigned'}</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                  {currentAttachment?.faculty_department || ''}
+                  {currentAttachment?.faculty_supervisor_email ? ` • ${currentAttachment.faculty_supervisor_email}` : ''}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="content-grid">
           <div className="card new-log-card">

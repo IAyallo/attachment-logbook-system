@@ -148,3 +148,12 @@ Attachment-logbook-system - Claude.pdf
 database/Doc1.docx
 database/Doc1.pdf
 .gitignore
+docs/CHANGE_SUMMARY.md
+database/schema.sql
+database/schema.sql
+database/test_bulk_upload.csv
+docs/Industrial_Attachment_Application_Template.md
+docs/Past_Attachments_Migration_pgAdmin.sql
+docs/View_Past_Attachments_Flow.md
+database/test_bulk_upload.csv
+database/schema.sql

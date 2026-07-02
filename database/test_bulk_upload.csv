@@ -1,8 +1,8 @@
-full_name,email,password,role,phone_number,reg_number,programme
-Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,+254712345678,138701,WBL
-Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,+254723456789,138702,SBL
-Faith Mumbi,faith.mumbi@strathmore.edu,Passw0rd!,student,+254734567890,138703,WBL
-Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,+254745678901,,
-Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,+254756789012,,
-Bad Row Missing Reg,badrow@strathmore.edu,Passw0rd!,student,+254767890123,,WBL
-Duplicate Programme,dupprog@strathmore.edu,Passw0rd!,student,+254778901234,138704,MBA
+full_name,email,password,role,phone_number,institution_name,reg_number,programme
+Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,0712345678,Kenya Revenue Authority,138701,WBL
+Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,0712345679,Nairobi Hospital,138702,SBL
+Faith Mumbi,faith.mumbi@strathmore.edu,Passw0rd!,student,0712345680,Kenya School of Government,138703,WBL
+Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,0712345681,,,
+Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,0712345682,,,
+Bad Row Missing Reg,badrow@strathmore.edu,Passw0rd!,student,0712345683,Kenya Medical Training College,,WBL
+Duplicate Programme,dupprog@strathmore.edu,Passw0rd!,student,0712345684,Aga Khan University Hospital,138704,MBA

@@ -4,6 +4,7 @@ interface User {
   id: string;
   email: string;
   role: string;
+  must_change_password?: boolean;
   full_name?: string;
   department?: string;
   job_title?: string;

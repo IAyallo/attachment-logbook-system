@@ -284,7 +284,10 @@ const getWeeklyReport = async (req, res) => {
                   )
                 END AS approval_rate
              FROM logbook_entries le
+                         JOIN students s ON le.student_id = s.id
              WHERE le.student_id = ANY($1::uuid[])
+                             AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+                             AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              GROUP BY DATE_TRUNC('week', le.entry_date)
              ORDER BY week_start DESC`,
             [scopedIds],
@@ -319,7 +322,10 @@ const getCategoryPerformance = async (req, res) => {
                 ROUND(AVG(le.marks) FILTER (WHERE le.marks IS NOT NULL), 2) AS average_marks,
                 COUNT(*) FILTER (WHERE le.status = 'approved') AS approved_entries
              FROM logbook_entries le
+             JOIN students s ON le.student_id = s.id
              WHERE le.student_id = ANY($1::uuid[])
+               AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+               AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              GROUP BY ${reportCategorySql}
              ORDER BY average_marks DESC NULLS LAST, total_hours DESC`,
             [scopedIds],
@@ -368,6 +374,8 @@ const getLogsByCategory = async (req, res) => {
              FROM logbook_entries le
              JOIN students s ON le.student_id = s.id
              WHERE le.student_id = ANY($1::uuid[])
+               AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
+               AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              ${filterClause}
              ORDER BY le.entry_date DESC, le.id DESC`,
             params,

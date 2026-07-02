@@ -12,6 +12,12 @@ interface UserRow {
   role: string;
   created_at: string;
   reg_number: string | null;
+  institution_name?: string | null;
+}
+
+interface InstitutionOption {
+  id: string;
+  name: string;
 }
 
 interface BulkUploadResponse {
@@ -20,8 +26,14 @@ interface BulkUploadResponse {
   failed: Array<{ email: string; reason: string }>;
 }
 
+interface ResetTarget {
+  id: string;
+  label: string;
+}
+
 const AdminUsers = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -30,6 +42,7 @@ const AdminUsers = () => {
   const [role, setRole] = useState('student');
   const [regNumber, setRegNumber] = useState('');
   const [programme, setProgramme] = useState('WBL');
+  const [institutionId, setInstitutionId] = useState('');
   const [creating, setCreating] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [uploadingCsv, setUploadingCsv] = useState(false);
@@ -38,6 +51,9 @@ const AdminUsers = () => {
   const [bulkSuccess, setBulkSuccess] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [resetTarget, setResetTarget] = useState<ResetTarget | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const fetchUsers = async () => {
     try {
@@ -62,6 +78,17 @@ const AdminUsers = () => {
         console.error('Failed to fetch users', err);
       });
 
+    api
+      .get('/admin/institutions')
+      .then((res) => {
+        if (isMounted) {
+          setInstitutions(res.data.institutions || []);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch institutions', err);
+      });
+
     return () => {
       isMounted = false;
     };
@@ -79,6 +106,12 @@ const AdminUsers = () => {
       return;
     }
 
+    if (role === 'student' && !institutionId) {
+      setError('Institution is required for students.');
+      setCreating(false);
+      return;
+    }
+
     try {
       await api.post('/admin/users', {
         email,
@@ -88,6 +121,7 @@ const AdminUsers = () => {
         phone_number: phoneNumber.trim() || undefined,
         reg_number: role === 'student' ? regNumber.trim() : undefined,
         programme: role === 'student' ? programme : undefined,
+        institution_id: role === 'student' ? institutionId : undefined,
       });
       setSuccess(`User "${fullName}" created successfully.`);
       setFullName('');
@@ -97,6 +131,7 @@ const AdminUsers = () => {
       setRole('student');
       setRegNumber('');
       setProgramme('WBL');
+      setInstitutionId('');
       fetchUsers();
     } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(err.response?.data?.message || 'Failed to create user.');
@@ -136,12 +171,12 @@ const AdminUsers = () => {
 
   const handleDownloadTemplate = () => {
     const template = [
-      'full_name,email,password,role,phone_number,reg_number,programme',
-      'Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,+254712345678,138701,WBL',
-      'Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,+254723456789,138702,SBL',
-      'Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,+254734567890,,',
-      'Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,+254745678901,,',
-      'System Admin,admin@strathmore.edu,Passw0rd!,admin,+254756789012,,',
+      'full_name,email,password,role,phone_number,institution_name,reg_number,programme',
+      'Jane Wanjiru,jane.wanjiru@strathmore.edu,Passw0rd!,student,0712345678,Kenya Revenue Authority,138701,WBL',
+      'Brian Otieno,brian.otieno@strathmore.edu,Passw0rd!,student,0712345679,Nairobi Hospital,138702,SBL',
+      'Peter Kamau,peter.kamau@hostcompany.com,Passw0rd!,host_supervisor,0712345680,,',
+      'Alice Njoroge,alice.njoroge@strathmore.edu,Passw0rd!,faculty_supervisor,0712345681,,',
+      'System Admin,admin@strathmore.edu,Passw0rd!,admin,0712345682,,',
     ].join('\n');
 
     const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
@@ -163,6 +198,48 @@ const AdminUsers = () => {
       admin: 'Administrator',
     };
     return map[role] || role;
+  };
+  
+  const openResetPasswordDialog = (userId: string, userLabel: string) => {
+    setResetTarget({ id: userId, label: userLabel });
+    setResetPassword('');
+    setError('');
+    setSuccess('');
+  };
+
+  const closeResetPasswordDialog = () => {
+    setResetTarget(null);
+    setResetPassword('');
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTarget) return;
+
+    if (!resetPassword.trim()) {
+      setError('Temporary password is required.');
+      return;
+    }
+
+    if (resetPassword.trim().length < 8) {
+      setError('Temporary password must be at least 8 characters.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setResettingPassword(true);
+
+    try {
+      const response = await api.patch(`/admin/users/${resetTarget.id}/reset-password`, {
+        temporary_password: resetPassword.trim(),
+      });
+      setSuccess(response.data.message || 'Password reset successfully.');
+      closeResetPasswordDialog();
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err.response?.data?.message || 'Failed to reset password.');
+    } finally {
+      setResettingPassword(false);
+    }
   };
 
   return (
@@ -203,7 +280,15 @@ const AdminUsers = () => {
               </div>
               <div className="form-group">
                 <label>PHONE NUMBER</label>
-                <input type="text" placeholder="e.g. +254712345678" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
+                <input
+                  type="text"
+                  placeholder="e.g. 0712345678"
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  pattern="07[0-9]{8}"
+                  title="Phone number must be in format 07XXXXXXXX"
+                  required
+                />
               </div>
             </div>
             <div className="form-row">
@@ -231,6 +316,15 @@ const AdminUsers = () => {
                     <option value="SBL">SBL</option>
                   </select>
                 </div>
+                <div className="form-group">
+                  <label>INSTITUTION</label>
+                  <select value={institutionId} onChange={(e) => setInstitutionId(e.target.value)} required>
+                    <option value="">Select institution</option>
+                    {institutions.map((inst) => (
+                      <option key={inst.id} value={inst.id}>{inst.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
             {error && <div className="error-message">{error}</div>}
@@ -245,7 +339,7 @@ const AdminUsers = () => {
       <div className="card" style={{ marginBottom: '20px' }}>
         <h2>Bulk Upload Users (CSV)</h2>
         <p className="subtitle" style={{ marginBottom: '16px' }}>
-          Upload CSV in the same format as database/test_bulk_upload.csv.
+          Upload CSV in the same format as database/test_bulk_upload.csv. Phone numbers must use 07XXXXXXXX.
         </p>
 
         <form onSubmit={handleBulkUpload}>
@@ -308,7 +402,9 @@ const AdminUsers = () => {
               <th>EMAIL</th>
               <th>PHONE</th>
               <th>ROLE</th>
+              <th>INSTITUTION</th>
               <th>JOINED</th>
+              <th>ACTIONS</th>
             </tr>
           </thead>
           <tbody>
@@ -318,15 +414,63 @@ const AdminUsers = () => {
                 <td>{u.email}</td>
                 <td>{u.phone_number || '—'}</td>
                 <td>{roleLabel(u.role)}</td>
+                <td>{u.institution_name || '—'}</td>
                 <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                <td>
+                  <button
+                    className="btn-small"
+                    onClick={() => openResetPasswordDialog(u.id, u.full_name || u.email)}
+                  >
+                    Reset Password
+                  </button>
+                </td>
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={5} className="empty-state">No users found.</td></tr>
+              <tr><td colSpan={7} className="empty-state">No users found.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {resetTarget && (
+        <div className="card" style={{ marginTop: '20px' }}>
+          <h2>Reset Password</h2>
+          <p className="subtitle" style={{ marginBottom: '12px' }}>
+            Set a temporary password for <strong>{resetTarget.label}</strong>.
+          </p>
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>TEMPORARY PASSWORD</label>
+              <input
+                type="text"
+                value={resetPassword}
+                onChange={(e) => setResetPassword(e.target.value)}
+                placeholder="At least 8 characters"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleResetPassword}
+              disabled={resettingPassword}
+            >
+              {resettingPassword ? 'Resetting...' : 'Confirm Reset'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)' }}
+              onClick={closeResetPasswordDialog}
+              disabled={resettingPassword}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

@@ -30,6 +30,9 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
           <NavLink to="/admin/assignments" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Assignments
           </NavLink>
+          <NavLink to="/admin/applications" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            Applications
+          </NavLink>
           <NavLink to="/admin/audit-trails" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             Audit Trails
           </NavLink>

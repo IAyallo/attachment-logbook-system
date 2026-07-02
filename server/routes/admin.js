@@ -11,6 +11,7 @@ const {
     getUsers,
     getFinalGrade,
     bulkCreateUsers,
+    resetUserPassword,
     getAssignmentOptions,
     getAssignments,
     updateAssignment,
@@ -22,6 +23,7 @@ router.post('/institutions', verifyToken, verifyAdmin, createInstitution);
 router.post('/users', verifyToken, verifyAdmin, createUser);
 router.get('/audit-trails', verifyToken, verifyAdmin, getAuditTrails);
 router.get('/users', verifyToken, verifyAdmin, getUsers);
+router.patch('/users/:userId/reset-password', verifyToken, verifyAdmin, resetUserPassword);
 router.get('/assignment-options', verifyToken, verifyAdmin, getAssignmentOptions);
 router.get('/assignments', verifyToken, verifyAdmin, getAssignments);
 router.patch('/assignments/:studentId', verifyToken, verifyAdmin, updateAssignment);

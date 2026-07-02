@@ -52,7 +52,6 @@ Grade boundaries: A (70+, Distinction), B (60+, Merit), C (50+, Pass), F (below 
 ## Known Limitations
 
 - **File Storage:** Composite report PDFs are stored on local disk (`server/uploads/`). This works for development and demo purposes but is not suitable for production deployment. A cloud storage solution (e.g. AWS S3) should be used in a production environment.
-- **Offline-First:** PWA service worker / IndexedDB offline sync is planned but not yet implemented.
 
 ---
 
@@ -73,7 +72,6 @@ attachment-logbook-system/
 │       │   ├── Login.tsx
 │       │   ├── StudentDashboard.tsx
 │       │   ├── StudentLogs.tsx
-│       │   ├── StudentSyncQueue.tsx
 │       │   ├── StudentReport.tsx
 │       │   ├── StudentGrade.tsx
 │       │   ├── SupervisorDashboard.tsx
@@ -172,7 +170,6 @@ attachment-logbook-system/
 | `/login` | Login (email or student reg number) | All |
 | `/student` | Student Workspace — create and submit daily logs | Student |
 | `/student/logs` | Daily Logs — full log history with feedback and marks | Student |
-| `/student/sync-queue` | Sync Queue — entries pending submission/sync | Student |
 | `/student/report` | Composite Report — upload PDF, view grading status | Student |
 | `/student/grade` | Final Grade — full breakdown with progress bars | Student |
 | `/supervisor` | Log Approval Queue — review and grade submitted logs | Host Supervisor |
@@ -248,5 +245,4 @@ PORT=3000
 | Frontend — All 4 roles, all pages wired to live data | Complete |
 | Weighted Grading System (20 + 30 + 50 = 100) | Complete |
 | Post-presentation fixes (reg number login, real names) | Complete |
-| Offline-First PWA (Service Workers + IndexedDB) | Upcoming |
 | Testing and Evaluation | Upcoming |

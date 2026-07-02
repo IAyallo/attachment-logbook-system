@@ -5,7 +5,6 @@ import './AdminDashboard.css';
 
 interface Overview {
   total_hours_logged: number;
-  sync_success_rate: string;
   active_supervisors: number;
   total_institutions: number;
 }
@@ -28,10 +27,6 @@ const AdminDashboard = () => {
         <div className="card stat-card">
           <div className="stat-label">TOTAL HOURS LOGGED</div>
           <div className="stat-value">{overview?.total_hours_logged?.toLocaleString() ?? '—'}</div>
-        </div>
-        <div className="card stat-card">
-          <div className="stat-label">SYNC SUCCESS RATE</div>
-          <div className="stat-value stat-green">{overview?.sync_success_rate ?? '—'}%</div>
         </div>
         <div className="card stat-card">
           <div className="stat-label">ACTIVE SUPERVISORS</div>
