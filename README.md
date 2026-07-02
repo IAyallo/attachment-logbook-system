@@ -1,213 +1,221 @@
+<!-- markdownlint-disable MD022 MD024 MD032 MD034 -->
+
 # Attachment Logbook System (LogSync)
-### Strathmore University — ICS 3, Group E
 
-A Progressive Web Application (PWA) that replaces the manual, paper-based student attachment logbook with a centralized digital platform — enabling real-time monitoring, digital approvals, and compliance reporting.
+Strathmore University industrial attachment platform for WBL and SBL supervision, grading, and reporting.
 
----
+## Overview
 
-## The Problem
+This system replaces manual attachment logbooks with a role-based web application for:
+- daily log capture and review
+- host and faculty assessment
+- composite report grading
+- student-led attachment applications and approvals
+- notifications and audit visibility
 
-Strathmore students on mandatory WBL (320 hrs) and SBL (225 hrs) placements currently track daily activities in physical logbooks. These are vulnerable to loss and damage, invisible to university coordinators in real time, and require physical supervisor signatures each week — creating unnecessary delays and administrative overhead for all parties.
+## Roles and Core Responsibilities
 
-## The Solution
-
-A web-based system with four role-specific portals:
-
-| Role | Portal | Key Actions |
-|------|--------|-------------|
-| Student | Logging Module | Submit daily logs, upload composite report, view final grade |
-| Host Supervisor | Approval Portal | Review logs, approve/reject, finalize 20-credit score |
-| Faculty Supervisor | Evaluation Portal | Grade mid-term assessments (30 credits), grade composite report (50 credits) |
-| University Coordinator | Admin Dashboard | Manage institutions, users, monitor audit trail |
-
----
+| Role | Main Capabilities |
+| --- | --- |
+| Student | Submit daily logs, apply for attachment, view approved institutions, track current and past attachments, upload report, view final grade and reviews |
+| Host Supervisor | Review submitted logs, score host component, view assigned students |
+| Faculty Supervisor | Submit faculty assessment, grade reports, view analytics |
+| Admin | Manage institutions and users, review applications, assign faculty supervisors, monitor audit trails, reset user passwords |
 
 ## Grading Model
 
-| Component | Credits | Graded By | Source |
-|-----------|---------|-----------|--------|
-| Daily Logs (auto-averaged, overridable) | 20 | Host Supervisor | `logbook_entries.marks` |
-| Mid-term/Final Assessment | 30 | Faculty Supervisor | `assessment_forms.faculty_marks` |
-| Composite Report (PDF) | 50 | Faculty Supervisor | `composite_reports.marks` |
-| **Total** | **100** | — | Computed |
+| Component | Weight |
+| --- | --- |
+| Host component | 20 |
+| Faculty assessment | 30 |
+| Composite report | 50 |
+| Total | 100 |
 
-Grade boundaries: A (70+, Distinction), B (60+, Merit), C (50+, Pass), F (below 50, Fail)
+## Key Features Delivered
 
----
+### Attachment application workflow
+- Student submits application with organisation and supervisor details.
+- Admin reviews and approves or rejects applications.
+- On approval, student attachment cycle updates and onboarding links are applied.
+
+### Current and past attachment visibility
+- Students can view current attachment details on dashboard.
+- Students can view previous attachment records with detailed snapshots.
+
+### Lifecycle controls
+- Previous cycle data is isolated from active cycle views.
+- Host/faculty/admin active log views are filtered to current attachment window.
+
+### Password recovery and reset
+- User can submit forgot-password request from login page.
+- Admin receives notification and resets password from Users page.
+- Reset user is forced to change password on next login.
+
+### Notifications
+- Role-scoped notifications for major workflow events.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React + TypeScript + Vite (PWA) |
-| Backend | Node.js + Express.js |
-| Database | PostgreSQL 18 |
-| Auth | JWT + Role-Based Access Control (RBAC) |
-| File Upload | Multer (PDF, local disk — see Limitations) |
-| IDE | VS Code |
-| Version Control | Git + GitHub |
-
----
-
-## Known Limitations
-
-- **File Storage:** Composite report PDFs are stored on local disk (`server/uploads/`). This works for development and demo purposes but is not suitable for production deployment. A cloud storage solution (e.g. AWS S3) should be used in a production environment.
-
----
+- Frontend: React, TypeScript, Vite
+- Backend: Node.js, Express
+- Database: PostgreSQL
+- Auth: JWT
+- File uploads: Multer
 
 ## Project Structure
 
-```
+```text
 attachment-logbook-system/
 ├── client/
 │   └── src/
 │       ├── api/
-│       │   └── axios.ts
 │       ├── components/
-│       │   ├── AdminLayout.tsx
-│       │   ├── StudentLayout.tsx
-│       │   ├── SupervisorLayout.tsx
-│       │   └── FacultyLayout.tsx
-│       ├── pages/
-│       │   ├── Login.tsx
-│       │   ├── StudentDashboard.tsx
-│       │   ├── StudentLogs.tsx
-│       │   ├── StudentReport.tsx
-│       │   ├── StudentGrade.tsx
-│       │   ├── SupervisorDashboard.tsx
-│       │   ├── HostStudentList.tsx
-│       │   ├── FacultyDashboard.tsx
-│       │   ├── FacultyReports.tsx
-│       │   ├── AdminDashboard.tsx
-│       │   ├── AdminInstitutions.tsx
-│       │   ├── AdminUsers.tsx
-│       │   └── AdminAuditTrails.tsx
 │       ├── context/
-│       │   └── AuthContext.tsx
+│       ├── pages/
 │       ├── App.tsx
 │       └── main.tsx
 ├── server/
-│   ├── config/db.js
+│   ├── config/
 │   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── logController.js
-│   │   ├── assessmentController.js
-│   │   ├── reportController.js
-│   │   └── adminController.js
 │   ├── middleware/
-│   │   ├── auth.js
-│   │   └── upload.js
 │   ├── routes/
-│   │   ├── auth.js
-│   │   ├── logs.js
-│   │   ├── assessments.js
-│   │   ├── reports.js
-│   │   └── admin.js
-│   ├── uploads/              (gitignored)
-│   ├── index.js
-│   └── .env                  (never commit)
+│   ├── uploads/
+│   └── index.js
 ├── database/
-│   └── schema.sql
+│   ├── schema.sql
+│   └── test_bulk_upload.csv
 ├── docs/
+│   ├── CHANGE_SUMMARY.md
+│   ├── Past_Attachments_Migration_pgAdmin.sql
+│   └── View_Past_Attachments_Flow.md
 └── README.md
 ```
 
----
-
-## API Endpoints
+## Backend API Summary
 
 ### Auth
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/auth/register` | Register a new user | None |
-| POST | `/api/auth/login` | Login with email or student reg number | None |
-| GET | `/api/auth/me` | Get current user info | JWT |
+- POST /api/auth/register
+- POST /api/auth/login
+- POST /api/auth/forgot-password-request
+- POST /api/auth/change-password
+- GET /api/auth/me
 
-### Logbook Entries
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/logs` | Create a log entry | JWT (student) |
-| GET | `/api/logs` | View all own log entries | JWT (student) |
-| PATCH | `/api/logs/:id/submit` | Submit a draft entry | JWT (student) |
-| GET | `/api/logs/my-grade` | Get final grade breakdown | JWT (student) |
-| GET | `/api/logs/pending` | View logs awaiting approval | JWT (host supervisor) |
-| PATCH | `/api/logs/:id/review` | Approve or reject a log entry | JWT (host supervisor) |
-| GET | `/api/logs/my-students` | List assigned students | JWT (host supervisor) |
-| GET | `/api/logs/host-score/:studentId` | Get auto-calculated 20-credit host score | JWT (host supervisor) |
-| POST | `/api/logs/host-score/:studentId` | Override/finalize the host score | JWT (host supervisor) |
+### Logs
+- POST /api/logs
+- GET /api/logs
+- PATCH /api/logs/:id/submit
+- GET /api/logs/pending
+- PATCH /api/logs/:id/review
+- GET /api/logs/host-score/:studentId
+- POST /api/logs/host-score/:studentId
+- GET /api/logs/my-students
+- GET /api/logs/my-grade
 
-### Assessment Forms
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/assessments/students` | View assigned students | JWT (faculty supervisor) |
-| POST | `/api/assessments` | Submit a mid-term/final assessment (0-30) | JWT (faculty supervisor) |
+### Assessments
+- GET /api/assessments/students
+- POST /api/assessments
 
-### Composite Reports
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/reports/upload` | Upload composite report PDF | JWT (student) |
-| GET | `/api/reports/my-report` | View own report status | JWT (student) |
-| GET | `/api/reports/pending` | View reports awaiting grading | JWT (faculty supervisor) |
-| PATCH | `/api/reports/:id/grade` | Grade a composite report (0-50) | JWT (faculty supervisor) |
+### Reports and analytics
+- POST /api/reports/upload
+- GET /api/reports/my-report
+- GET /api/reports/pending
+- PATCH /api/reports/:id/grade
+- GET /api/reports/students
+- GET /api/reports/weekly
+- GET /api/reports/category-performance
+- GET /api/reports/logs-by-category
+
+### Applications
+- GET /api/applications/institutions
+- GET /api/applications/my
+- GET /api/applications/current
+- GET /api/applications/previous
+- POST /api/applications
+- GET /api/applications/admin
+- PATCH /api/applications/admin/:id/review
+
+### Notifications
+- GET /api/notifications
+- PATCH /api/notifications/read-all
+- PATCH /api/notifications/:id/read
 
 ### Admin
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/admin/overview` | Dashboard stats | JWT (admin) |
-| GET | `/api/admin/institutions` | List all institutions | JWT (admin) |
-| POST | `/api/admin/institutions` | Register a new institution | JWT (admin) |
-| GET | `/api/admin/users` | List all users | JWT (admin) |
-| POST | `/api/admin/users` | Onboard a new user | JWT (admin) |
-| GET | `/api/admin/audit-trails` | System activity feed | JWT (admin) |
-| GET | `/api/admin/final-grade/:studentId` | Get student final grade breakdown | JWT (admin) |
+- GET /api/admin/overview
+- GET /api/admin/institutions
+- POST /api/admin/institutions
+- GET /api/admin/users
+- POST /api/admin/users
+- PATCH /api/admin/users/:userId/reset-password
+- POST /api/admin/users/bulk-upload
+- GET /api/admin/assignment-options
+- GET /api/admin/assignments
+- PATCH /api/admin/assignments/:studentId
+- GET /api/admin/audit-trails
+- GET /api/admin/final-grade/:studentId
 
----
+## Frontend Routes
 
-## Frontend Pages
+### Public
+- /login
 
-| Route | Page | Role |
-|-------|------|------|
-| `/login` | Login (email or student reg number) | All |
-| `/student` | Student Workspace — create and submit daily logs | Student |
-| `/student/logs` | Daily Logs — full log history with feedback and marks | Student |
-| `/student/report` | Composite Report — upload PDF, view grading status | Student |
-| `/student/grade` | Final Grade — full breakdown with progress bars | Student |
-| `/supervisor` | Log Approval Queue — review and grade submitted logs | Host Supervisor |
-| `/supervisor/students` | Student List — finalize 20-credit host score | Host Supervisor |
-| `/faculty` | Faculty Evaluation Portal — mid-term assessments (0-30) | Faculty Supervisor |
-| `/faculty/reports` | Composite Reports — grade student PDFs (0-50) | Faculty Supervisor |
-| `/admin` | Administrator Overview — system stats | Admin |
-| `/admin/institutions` | Institutions — list and register | Admin |
-| `/admin/users` | Users — list and onboard | Admin |
-| `/admin/audit-trails` | Audit Trail — full system history | Admin |
+### Shared guarded
+- /change-password
 
----
+### Student
+- /student
+- /student/logs
+- /student/apply
+- /student/institutions
+- /student/previous-attachments
+- /student/report
+- /student/grade
+- /student/notifications
+
+### Host Supervisor
+- /supervisor
+- /supervisor/students
+- /supervisor/assess/:studentId
+- /supervisor/reports
+- /supervisor/notifications
+
+### Faculty Supervisor
+- /faculty
+- /faculty/assess/:studentId
+- /faculty/reports
+- /faculty/analytics
+- /faculty/notifications
+
+### Admin
+- /admin
+- /admin/institutions
+- /admin/users
+- /admin/assignments
+- /admin/applications
+- /admin/reports
+- /admin/audit-trails
+- /admin/notifications
 
 ## Getting Started
 
+### 1) Prerequisites
+- Node.js 18+
+- PostgreSQL
+
+### 2) Install dependencies
+
 ```bash
-# Backend
-cd server && npm run dev
+cd server
+npm install
 
-# Frontend
-cd client && npm run dev
+cd ../client
+npm install
 ```
 
-Visit `http://localhost:5173/login`
+### 3) Configure environment
 
-### Test Accounts
-| Role | Login | Password |
-|------|-------|----------|
-| Student | `138615` or `ishmael@strathmore.edu` | `password123` |
-| Host Supervisor | `supervisor@company.com` | `password123` |
-| Faculty Supervisor | `faculty@strathmore.edu` | `password123` |
-| Admin | `admin@strathmore.edu` | `password123` |
+Create server/.env:
 
----
-
-## Environment Variables
-
-```
+```env
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=logbook_db
@@ -217,32 +225,41 @@ JWT_SECRET=logbook_secret_key
 PORT=3000
 ```
 
----
+### 4) Database setup
+- Run database/schema.sql on PostgreSQL.
+- For incremental updates already in progress, apply:
+  - docs/Past_Attachments_Migration_pgAdmin.sql
+
+Important: if missing, apply this for forced password change flow:
+
+```sql
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+```
+
+### 5) Run application
+
+```bash
+# terminal 1
+cd server
+npm run dev
+
+# terminal 2
+cd client
+npm run dev
+```
+
+Open: http://localhost:5173/login
+
+## Notes
+
+- Uploaded reports are served from server/uploads (local disk).
+- Sync queue features are deferred from current release scope.
+- Main change log is documented in docs/CHANGE_SUMMARY.md.
 
 ## Team
 
-- **Ishmael Ayallo** — 138615
-- **Patrick Mungai** — 191231
-- **Supervisor:** Daniel Machanje
-- **School:** SCES, Strathmore University
-
----
-
-## Project Status
-
-| Milestone | Status |
-|-----------|--------|
-| Project Proposal | Complete |
-| Dev Environment Setup | Complete |
-| System Diagrams (all 7) | Complete |
-| Database Schema (10+ tables) | Complete |
-| Backend — Auth (email + reg number, all 4 roles) | Complete |
-| Backend — Logbook Entries + Supervisor Approvals | Complete |
-| Backend — Faculty Assessment Forms | Complete |
-| Backend — Composite Report Upload + Grading | Complete |
-| Backend — Admin Dashboard Routes | Complete |
-| Backend — Final Grade Breakdown (all 3 components) | Complete |
-| Frontend — All 4 roles, all pages wired to live data | Complete |
-| Weighted Grading System (20 + 30 + 50 = 100) | Complete |
-| Post-presentation fixes (reg number login, real names) | Complete |
-| Testing and Evaluation | Upcoming |
+- Ishmael Ayallo (138615)
+- Patrick Mungai (191231)
+- Supervisor: Daniel Machanje
+- School: SCES, Strathmore University
