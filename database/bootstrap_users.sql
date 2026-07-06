@@ -4,6 +4,19 @@
 
 BEGIN;
 
+SET search_path TO public;
+
+DO $$
+BEGIN
+  IF to_regclass('public.users') IS NULL THEN
+    RAISE EXCEPTION 'Table public.users not found. Run database/schema.sql in logbook_db first.';
+  END IF;
+  IF to_regclass('public.institutions') IS NULL THEN
+    RAISE EXCEPTION 'Table public.institutions not found. Run database/schema.sql in logbook_db first.';
+  END IF;
+END;
+$$;
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 1) Ensure at least one institution exists for student/host assignment
