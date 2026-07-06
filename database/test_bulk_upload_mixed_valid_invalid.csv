@@ -1,0 +1,3 @@
+full_name,email,password,role,phone_number,institution_name,reg_number,programme
+Valid Student One,valid.student.one+bulk1@strathmore.edu,Passw0rd!,student,0712345791,Kenya Revenue Authority,149901,WBL
+Invalid Missing Reg,invalid.missingreg+bulk1@strathmore.edu,Passw0rd!,student,0712345792,Kenya Revenue Authority,,WBL

@@ -6,11 +6,19 @@ import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
 const Login = () => {
+  const initialSessionError = (() => {
+    const sessionEndedMessage = localStorage.getItem('sessionEndedMessage');
+    if (sessionEndedMessage) {
+      localStorage.removeItem('sessionEndedMessage');
+    }
+    return sessionEndedMessage || "";
+  })();
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [forgotIdentifier, setForgotIdentifier] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialSessionError);
   const [forgotError, setForgotError] = useState("");
   const [forgotSuccess, setForgotSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,7 +89,7 @@ const Login = () => {
       <div className="login-card">
         <div className="login-logo">
           <span className="logo-icon">◆</span>
-          <span className="logo-text">LogSync</span>
+          <span className="logo-text">Attachment Hub</span>
         </div>
 
         <h1>Welcome back</h1>

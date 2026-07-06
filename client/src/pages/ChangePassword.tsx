@@ -65,7 +65,7 @@ const ChangePassword = () => {
       <div className="login-card">
         <div className="login-logo">
           <span className="logo-icon">◆</span>
-          <span className="logo-text">LogSync</span>
+          <span className="logo-text">Attachment Hub</span>
         </div>
 
         <h1>Change Password</h1>

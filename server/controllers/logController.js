@@ -20,6 +20,15 @@ const categoryByProgramme = {
   ],
 };
 
+const getHostSupervisorIdsByUser = async (userId) => {
+  const supervisorRows = await pool.query(
+    "SELECT id FROM host_supervisors WHERE user_id = $1",
+    [userId],
+  );
+
+  return supervisorRows.rows.map((row) => row.id);
+};
+
 // POST /api/logs — student creates a log entry
 const createLog = async (req, res) => {
   const { title, description, hours_logged, entry_date, category } = req.body;
@@ -28,7 +37,7 @@ const createLog = async (req, res) => {
   try {
     // Verify the user is a student
     const student = await pool.query(
-      "SELECT id, programme FROM students WHERE user_id = $1",
+      "SELECT id, programme, attachment_start, attachment_end FROM students WHERE user_id = $1",
       [student_id],
     );
     if (student.rows.length === 0) {
@@ -38,6 +47,22 @@ const createLog = async (req, res) => {
     }
 
     const programme = student.rows[0].programme;
+    const attachmentStart = student.rows[0].attachment_start;
+    const attachmentEnd = student.rows[0].attachment_end;
+    const normalizedEntryDate = entry_date || new Date().toISOString().split("T")[0];
+
+    if (attachmentStart && normalizedEntryDate < attachmentStart.toISOString().split("T")[0]) {
+      return res.status(400).json({
+        message: `You can only log activities from ${attachmentStart.toISOString().split("T")[0]} onwards for your current attachment.`,
+      });
+    }
+
+    if (attachmentEnd && normalizedEntryDate > attachmentEnd.toISOString().split("T")[0]) {
+      return res.status(400).json({
+        message: `You cannot log activities after ${attachmentEnd.toISOString().split("T")[0]} for your current attachment.`,
+      });
+    }
+
     const allowedLogCategories = categoryByProgramme[programme] || [];
     const normalizedCategory = category || allowedLogCategories[0];
 
@@ -58,7 +83,7 @@ const createLog = async (req, res) => {
         description,
         normalizedCategory,
         hours_logged,
-        entry_date,
+        normalizedEntryDate,
       ],
     );
 
@@ -121,6 +146,36 @@ const submitLog = async (req, res) => {
         .json({ message: "Only students can submit log entries." });
     }
 
+    const draftEntry = await pool.query(
+      `SELECT le.id, le.entry_date, s.attachment_start, s.attachment_end
+       FROM logbook_entries le
+       JOIN students s ON s.id = le.student_id
+       WHERE le.id = $1 AND le.student_id = $2 AND le.status = 'draft'`,
+      [id, student.rows[0].id],
+    );
+
+    if (draftEntry.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Entry not found or already submitted." });
+    }
+
+    const entryDate = draftEntry.rows[0].entry_date;
+    const attachmentStart = draftEntry.rows[0].attachment_start;
+    const attachmentEnd = draftEntry.rows[0].attachment_end;
+
+    if (attachmentStart && entryDate < attachmentStart) {
+      return res.status(400).json({
+        message: "This log is outside your current attachment period and cannot be submitted.",
+      });
+    }
+
+    if (attachmentEnd && entryDate > attachmentEnd) {
+      return res.status(400).json({
+        message: "This log is outside your current attachment period and cannot be submitted.",
+      });
+    }
+
     const result = await pool.query(
       `UPDATE logbook_entries 
              SET status = 'submitted', submitted_at = NOW()
@@ -128,12 +183,6 @@ const submitLog = async (req, res) => {
              RETURNING *`,
       [id, student.rows[0].id],
     );
-
-    if (result.rows.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Entry not found or already submitted." });
-    }
 
     res.status(200).json({
       message: "Log entry submitted successfully.",
@@ -149,11 +198,8 @@ const getPendingLogs = async (req, res) => {
   const user_id = req.user.id;
 
   try {
-    const supervisor = await pool.query(
-      "SELECT id FROM host_supervisors WHERE user_id = $1",
-      [user_id],
-    );
-    if (supervisor.rows.length === 0) {
+    const supervisorIds = await getHostSupervisorIdsByUser(user_id);
+    if (supervisorIds.length === 0) {
       return res
         .status(403)
         .json({ message: "Only host supervisors can view pending logs." });
@@ -163,12 +209,12 @@ const getPendingLogs = async (req, res) => {
       `SELECT le.*, s.reg_number 
              FROM logbook_entries le
              JOIN students s ON le.student_id = s.id
-             WHERE s.host_supervisor_id = $1
+             WHERE s.host_supervisor_id = ANY($1::uuid[])
                AND le.status = 'submitted'
                AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
                AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
              ORDER BY le.submitted_at ASC`,
-      [supervisor.rows[0].id],
+      [supervisorIds],
     );
 
     res.status(200).json({
@@ -195,11 +241,8 @@ const reviewLog = async (req, res) => {
   }
 
   try {
-    const supervisor = await pool.query(
-      "SELECT id FROM host_supervisors WHERE user_id = $1",
-      [user_id],
-    );
-    if (supervisor.rows.length === 0) {
+    const supervisorIds = await getHostSupervisorIdsByUser(user_id);
+    if (supervisorIds.length === 0) {
       return res
         .status(403)
         .json({ message: "Only host supervisors can review logs." });
@@ -207,16 +250,20 @@ const reviewLog = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE logbook_entries le
-             SET status = $1, feedback = $2, marks = $3, approved_by = $4, approved_at = NOW()
+             SET status = $1,
+                 feedback = $2,
+                 marks = $3,
+                 approved_by = s.host_supervisor_id,
+                 approved_at = NOW()
              FROM students s
-             WHERE le.id = $5 
+             WHERE le.id = $4 
                AND le.student_id = s.id 
-               AND s.host_supervisor_id = $4
+               AND s.host_supervisor_id = ANY($5::uuid[])
                AND (s.attachment_start IS NULL OR le.entry_date >= s.attachment_start)
                AND (s.attachment_end IS NULL OR le.entry_date <= s.attachment_end)
                AND le.status = 'submitted'
              RETURNING le.*`,
-      [decision, feedback || null, marks || null, supervisor.rows[0].id, id],
+      [decision, feedback || null, marks || null, id, supervisorIds],
     );
 
     if (result.rows.length === 0) {
@@ -268,11 +315,8 @@ const getHostScore = async (req, res) => {
   const user_id = req.user.id;
 
   try {
-    const supervisor = await pool.query(
-      "SELECT id FROM host_supervisors WHERE user_id = $1",
-      [user_id],
-    );
-    if (supervisor.rows.length === 0) {
+    const supervisorIds = await getHostSupervisorIdsByUser(user_id);
+    if (supervisorIds.length === 0) {
       return res
         .status(403)
         .json({ message: "Only host supervisors can view this." });
@@ -282,8 +326,8 @@ const getHostScore = async (req, res) => {
     const studentCheck = await pool.query(
       `SELECT id, attachment_start, attachment_end
        FROM students
-       WHERE id = $1 AND host_supervisor_id = $2`,
-      [studentId, supervisor.rows[0].id],
+       WHERE id = $1 AND host_supervisor_id = ANY($2::uuid[])`,
+      [studentId, supervisorIds],
     );
     if (studentCheck.rows.length === 0) {
       return res
@@ -339,15 +383,27 @@ const setHostScoreOverride = async (req, res) => {
   }
 
   try {
-    const supervisor = await pool.query(
-      "SELECT id FROM host_supervisors WHERE user_id = $1",
-      [user_id],
-    );
-    if (supervisor.rows.length === 0) {
+    const supervisorIds = await getHostSupervisorIdsByUser(user_id);
+    if (supervisorIds.length === 0) {
       return res
         .status(403)
         .json({ message: "Only host supervisors can set this." });
     }
+
+    const studentAssignment = await pool.query(
+      `SELECT id, host_supervisor_id
+       FROM students
+       WHERE id = $1 AND host_supervisor_id = ANY($2::uuid[])`,
+      [studentId, supervisorIds],
+    );
+
+    if (studentAssignment.rows.length === 0) {
+      return res
+        .status(403)
+        .json({ message: "This student is not assigned to you." });
+    }
+
+    const activeHostSupervisorId = studentAssignment.rows[0].host_supervisor_id;
 
     const result = await pool.query(
       `INSERT INTO assessment_forms (student_id, host_supervisor_id, form_type, host_marks, host_comments, status, approved_at)
@@ -360,7 +416,7 @@ const setHostScoreOverride = async (req, res) => {
                 status = 'approved',
                 approved_at = NOW()
              RETURNING *`,
-      [studentId, supervisor.rows[0].id, host_marks, host_comments],
+      [studentId, activeHostSupervisorId, host_marks, host_comments],
     );
 
     res.status(200).json({
@@ -396,11 +452,8 @@ const getMyHostStudents = async (req, res) => {
   const user_id = req.user.id;
 
   try {
-    const supervisor = await pool.query(
-      "SELECT id FROM host_supervisors WHERE user_id = $1",
-      [user_id],
-    );
-    if (supervisor.rows.length === 0) {
+    const supervisorIds = await getHostSupervisorIdsByUser(user_id);
+    if (supervisorIds.length === 0) {
       return res
         .status(403)
         .json({ message: "Only host supervisors can view this." });
@@ -426,10 +479,10 @@ const getMyHostStudents = async (req, res) => {
              LEFT JOIN assessment_forms af
                ON af.student_id = s.id
               AND af.form_type = 'host_score'
-             WHERE s.host_supervisor_id = $1
+                  WHERE s.host_supervisor_id = ANY($1::uuid[])
              GROUP BY s.id, u.phone_number, af.host_marks
              ORDER BY s.reg_number ASC`,
-      [supervisor.rows[0].id],
+                [supervisorIds],
     );
 
     res.status(200).json({ students: result.rows });

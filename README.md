@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD022 MD024 MD032 MD034 -->
 
-# Attachment Logbook System (LogSync)
+# Attachment Hub
 
 Strathmore University industrial attachment platform for WBL and SBL supervision, grading, and reporting.
 

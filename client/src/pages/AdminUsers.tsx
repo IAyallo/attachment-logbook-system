@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import api, { uploadApi } from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
@@ -12,6 +12,8 @@ interface UserRow {
   role: string;
   created_at: string;
   reg_number: string | null;
+  programme?: 'WBL' | 'SBL' | null;
+  institution_id?: string | null;
   institution_name?: string | null;
 }
 
@@ -30,6 +32,19 @@ interface ResetTarget {
   id: string;
   label: string;
 }
+
+interface EditableUser {
+  id: string;
+  full_name: string;
+  email: string;
+  phone_number: string;
+  role: string;
+  reg_number: string;
+  programme: 'WBL' | 'SBL';
+  institution_id: string;
+}
+
+type UserFilter = 'all' | 'student' | 'faculty_supervisor' | 'host_supervisor';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -54,6 +69,10 @@ const AdminUsers = () => {
   const [resetTarget, setResetTarget] = useState<ResetTarget | null>(null);
   const [resetPassword, setResetPassword] = useState('');
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [userFilter, setUserFilter] = useState<UserFilter>('all');
+  const [editingUser, setEditingUser] = useState<EditableUser | null>(null);
+  const [savingUserEdit, setSavingUserEdit] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const fetchUsers = async () => {
     try {
@@ -199,6 +218,20 @@ const AdminUsers = () => {
     };
     return map[role] || role;
   };
+
+  const filteredUsers = useMemo(() => {
+    if (userFilter === 'all') return users;
+    return users.filter((u) => u.role === userFilter);
+  }, [users, userFilter]);
+
+  const filterCounts = useMemo(() => {
+    return {
+      all: users.length,
+      student: users.filter((u) => u.role === 'student').length,
+      faculty_supervisor: users.filter((u) => u.role === 'faculty_supervisor').length,
+      host_supervisor: users.filter((u) => u.role === 'host_supervisor').length,
+    };
+  }, [users]);
   
   const openResetPasswordDialog = (userId: string, userLabel: string) => {
     setResetTarget({ id: userId, label: userLabel });
@@ -239,6 +272,104 @@ const AdminUsers = () => {
       setError(err.response?.data?.message || 'Failed to reset password.');
     } finally {
       setResettingPassword(false);
+    }
+  };
+
+  const openEditUserDialog = (user: UserRow) => {
+    setEditingUser({
+      id: user.id,
+      full_name: user.full_name || '',
+      email: user.email || '',
+      phone_number: user.phone_number || '',
+      role: user.role,
+      reg_number: user.reg_number || '',
+      programme: user.programme === 'SBL' ? 'SBL' : 'WBL',
+      institution_id: user.institution_id || '',
+    });
+    setError('');
+    setSuccess('');
+  };
+
+  const closeEditUserDialog = () => {
+    setEditingUser(null);
+  };
+
+  const handleSaveUserEdit = async () => {
+    if (!editingUser) return;
+
+    setError('');
+    setSuccess('');
+
+    if (!editingUser.full_name.trim()) {
+      setError('Full name is required.');
+      return;
+    }
+
+    if (!editingUser.email.trim()) {
+      setError('Email is required.');
+      return;
+    }
+
+    if (!editingUser.phone_number.trim()) {
+      setError('Phone number is required.');
+      return;
+    }
+
+    if (editingUser.role === 'student' && !editingUser.reg_number.trim()) {
+      setError('Admission/registration number is required for students.');
+      return;
+    }
+
+    if (editingUser.role === 'student' && !editingUser.institution_id) {
+      setError('Institution is required for students.');
+      return;
+    }
+
+    setSavingUserEdit(true);
+    try {
+      const payload: Record<string, string> = {
+        full_name: editingUser.full_name.trim(),
+        email: editingUser.email.trim(),
+        phone_number: editingUser.phone_number.trim(),
+      };
+
+      if (editingUser.role === 'student') {
+        payload.reg_number = editingUser.reg_number.trim();
+        payload.programme = editingUser.programme;
+        payload.institution_id = editingUser.institution_id;
+      }
+
+      const res = await api.patch(`/admin/users/${editingUser.id}`, payload);
+      setSuccess(res.data?.message || 'User updated successfully.');
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err.response?.data?.message || 'Failed to update user.');
+    } finally {
+      setSavingUserEdit(false);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserRow) => {
+    const label = user.full_name || user.email;
+    const confirmed = window.confirm(`Delete user "${label}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setError('');
+    setSuccess('');
+    setDeletingUserId(user.id);
+
+    try {
+      const res = await api.delete(`/admin/users/${user.id}`);
+      setSuccess(res.data?.message || 'User deleted successfully.');
+      fetchUsers();
+      if (editingUser?.id === user.id) {
+        setEditingUser(null);
+      }
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      setError(err.response?.data?.message || 'Failed to delete user.');
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -395,6 +526,37 @@ const AdminUsers = () => {
       </div>
 
       <div className="card">
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={userFilter === 'all' ? 'btn-primary' : 'btn-small'}
+            onClick={() => setUserFilter('all')}
+          >
+            All ({filterCounts.all})
+          </button>
+          <button
+            type="button"
+            className={userFilter === 'student' ? 'btn-primary' : 'btn-small'}
+            onClick={() => setUserFilter('student')}
+          >
+            Students ({filterCounts.student})
+          </button>
+          <button
+            type="button"
+            className={userFilter === 'faculty_supervisor' ? 'btn-primary' : 'btn-small'}
+            onClick={() => setUserFilter('faculty_supervisor')}
+          >
+            Faculty ({filterCounts.faculty_supervisor})
+          </button>
+          <button
+            type="button"
+            className={userFilter === 'host_supervisor' ? 'btn-primary' : 'btn-small'}
+            onClick={() => setUserFilter('host_supervisor')}
+          >
+            Host ({filterCounts.host_supervisor})
+          </button>
+        </div>
+
         <table className="data-table">
           <thead>
             <tr>
@@ -408,7 +570,7 @@ const AdminUsers = () => {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id}>
                 <td>{u.full_name || '—'} {u.reg_number && <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>({u.reg_number})</span>}</td>
                 <td>{u.email}</td>
@@ -417,17 +579,37 @@ const AdminUsers = () => {
                 <td>{u.institution_name || '—'}</td>
                 <td>{new Date(u.created_at).toLocaleDateString()}</td>
                 <td>
-                  <button
-                    className="btn-small"
-                    onClick={() => openResetPasswordDialog(u.id, u.full_name || u.email)}
-                  >
-                    Reset Password
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn-small"
+                      onClick={() => openEditUserDialog(u)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn-small"
+                      onClick={() => openResetPasswordDialog(u.id, u.full_name || u.email)}
+                    >
+                      Reset Password
+                    </button>
+                    <button
+                      className="btn-small"
+                      style={{ borderColor: '#ef4444', color: '#ef4444' }}
+                      onClick={() => handleDeleteUser(u)}
+                      disabled={deletingUserId === u.id}
+                    >
+                      {deletingUserId === u.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {users.length === 0 && (
-              <tr><td colSpan={7} className="empty-state">No users found.</td></tr>
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={7} className="empty-state">
+                  {userFilter === 'all' ? 'No users found.' : `No ${roleLabel(userFilter)} users found.`}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -465,6 +647,97 @@ const AdminUsers = () => {
               style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)' }}
               onClick={closeResetPasswordDialog}
               disabled={resettingPassword}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editingUser && (
+        <div className="card" style={{ marginTop: '20px' }}>
+          <h2>Edit User</h2>
+          <div className="form-row">
+            <div className="form-group">
+              <label>FULL NAME</label>
+              <input
+                type="text"
+                value={editingUser.full_name}
+                onChange={(e) => setEditingUser((prev) => prev ? { ...prev, full_name: e.target.value } : prev)}
+              />
+            </div>
+            <div className="form-group">
+              <label>EMAIL</label>
+              <input
+                type="email"
+                value={editingUser.email}
+                onChange={(e) => setEditingUser((prev) => prev ? { ...prev, email: e.target.value } : prev)}
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>PHONE NUMBER</label>
+              <input
+                type="text"
+                value={editingUser.phone_number}
+                onChange={(e) => setEditingUser((prev) => prev ? { ...prev, phone_number: e.target.value } : prev)}
+                placeholder="e.g. 0712345678"
+                pattern="07[0-9]{8}"
+                title="Phone number must be in format 07XXXXXXXX"
+              />
+            </div>
+            <div className="form-group">
+              <label>ROLE</label>
+              <input type="text" value={roleLabel(editingUser.role)} disabled />
+            </div>
+          </div>
+
+          {editingUser.role === 'student' && (
+            <div className="form-row">
+              <div className="form-group">
+                <label>ADMISSION/REG NUMBER</label>
+                <input
+                  type="text"
+                  value={editingUser.reg_number}
+                  onChange={(e) => setEditingUser((prev) => prev ? { ...prev, reg_number: e.target.value } : prev)}
+                />
+              </div>
+              <div className="form-group">
+                <label>PROGRAMME</label>
+                <select
+                  value={editingUser.programme}
+                  onChange={(e) => setEditingUser((prev) => prev ? { ...prev, programme: e.target.value as 'WBL' | 'SBL' } : prev)}
+                >
+                  <option value="WBL">WBL</option>
+                  <option value="SBL">SBL</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>INSTITUTION</label>
+                <select
+                  value={editingUser.institution_id}
+                  onChange={(e) => setEditingUser((prev) => prev ? { ...prev, institution_id: e.target.value } : prev)}
+                >
+                  <option value="">Select institution</option>
+                  {institutions.map((inst) => (
+                    <option key={inst.id} value={inst.id}>{inst.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="button" className="btn-primary" onClick={handleSaveUserEdit} disabled={savingUserEdit}>
+              {savingUserEdit ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{ backgroundColor: 'transparent', border: '1px solid var(--border-color)' }}
+              onClick={closeEditUserDialog}
+              disabled={savingUserEdit}
             >
               Cancel
             </button>

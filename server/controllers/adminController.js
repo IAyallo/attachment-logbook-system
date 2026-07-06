@@ -81,6 +81,100 @@ const createInstitution = async (req, res) => {
   }
 };
 
+// PATCH /api/admin/institutions/:institutionId — update institution details
+const updateInstitution = async (req, res) => {
+  const { institutionId } = req.params;
+  const { name, address, contact_person, contact_email, contact_phone } = req.body;
+
+  if (contact_phone && !phoneRegex.test(contact_phone)) {
+    return res.status(400).json({
+      message: "Institution contact phone must be in format 07XXXXXXXX.",
+    });
+  }
+
+  const nextName = typeof name === "string" ? name.trim() : "";
+  if (name !== undefined && !nextName) {
+    return res.status(400).json({ message: "Institution name cannot be empty." });
+  }
+
+  try {
+    const existing = await pool.query(
+      "SELECT id FROM institutions WHERE id = $1",
+      [institutionId],
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: "Institution not found." });
+    }
+
+    const result = await pool.query(
+      `UPDATE institutions
+       SET name = COALESCE($1, name),
+           address = COALESCE($2, address),
+           contact_person = COALESCE($3, contact_person),
+           contact_email = COALESCE($4, contact_email),
+           contact_phone = COALESCE($5, contact_phone)
+       WHERE id = $6
+       RETURNING *`,
+      [
+        name !== undefined ? nextName : null,
+        address !== undefined ? address : null,
+        contact_person !== undefined ? contact_person : null,
+        contact_email !== undefined ? contact_email : null,
+        contact_phone !== undefined ? contact_phone : null,
+        institutionId,
+      ],
+    );
+
+    return res.status(200).json({
+      message: "Institution updated successfully.",
+      institution: result.rows[0],
+    });
+  } catch (err) {
+    console.error("Update institution error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
+// DELETE /api/admin/institutions/:institutionId — remove an institution
+const deleteInstitution = async (req, res) => {
+  const { institutionId } = req.params;
+
+  try {
+    const existing = await pool.query(
+      "SELECT id, name FROM institutions WHERE id = $1",
+      [institutionId],
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: "Institution not found." });
+    }
+
+    const [studentsUsing, hostsUsing] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS count FROM students WHERE institution_id = $1", [institutionId]),
+      pool.query("SELECT COUNT(*)::int AS count FROM host_supervisors WHERE institution_id = $1", [institutionId]),
+    ]);
+
+    const studentCount = studentsUsing.rows[0].count;
+    const hostCount = hostsUsing.rows[0].count;
+
+    if (studentCount > 0 || hostCount > 0) {
+      return res.status(400).json({
+        message: `Cannot delete institution. It is still linked to ${studentCount} student(s) and ${hostCount} host supervisor profile(s).`,
+      });
+    }
+
+    await pool.query("DELETE FROM institutions WHERE id = $1", [institutionId]);
+
+    return res.status(200).json({
+      message: `Institution '${existing.rows[0].name}' deleted successfully.`,
+    });
+  } catch (err) {
+    console.error("Delete institution error:", err);
+    return res.status(500).json({ message: "Server error." });
+  }
+};
+
 // POST /api/admin/users — onboard a new user (any role)
 const createUser = async (req, res) => {
   const { email, password, role, full_name, phone_number, reg_number, programme, institution_id } = req.body;
@@ -193,7 +287,9 @@ const getUsers = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.email, u.full_name, u.phone_number, u.role, u.created_at,
-                    s.reg_number, 
+            s.reg_number,
+            s.programme,
+            s.institution_id,
               i.name AS institution_name,
                     hs.job_title AS host_job_title,
                     fs.department AS faculty_department
@@ -209,6 +305,177 @@ const getUsers = async (req, res) => {
   } catch (err) {
     console.error("Get users error:", err);
     res.status(500).json({ message: "Server error." });
+  }
+};
+
+// PATCH /api/admin/users/:userId — update user profile
+const updateUser = async (req, res) => {
+  const { userId } = req.params;
+  const {
+    email,
+    full_name,
+    phone_number,
+    role,
+    reg_number,
+    programme,
+    institution_id,
+  } = req.body;
+
+  if (phone_number && !phoneRegex.test(phone_number)) {
+    return res.status(400).json({
+      message: "Phone number must be in format 07XXXXXXXX.",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const existingUser = await client.query(
+      `SELECT u.id, u.email, u.role, u.full_name, u.phone_number,
+              s.id AS student_id, s.reg_number, s.programme, s.institution_id
+       FROM users u
+       LEFT JOIN students s ON s.user_id = u.id
+       WHERE u.id = $1`,
+      [userId],
+    );
+
+    if (existingUser.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const current = existingUser.rows[0];
+
+    if (role && role !== current.role) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ message: "Changing user role is not supported." });
+    }
+
+    if (email && email !== current.email) {
+      const duplicateEmail = await client.query(
+        "SELECT id FROM users WHERE email = $1 AND id <> $2",
+        [email, userId],
+      );
+      if (duplicateEmail.rows.length > 0) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({ message: "Email already registered." });
+      }
+    }
+
+    const nextUser = await client.query(
+      `UPDATE users
+       SET email = COALESCE($1, email),
+           full_name = COALESCE($2, full_name),
+           phone_number = COALESCE($3, phone_number),
+           updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, email, role, full_name, phone_number, created_at`,
+      [
+        email !== undefined ? email : null,
+        full_name !== undefined ? full_name : null,
+        phone_number !== undefined ? phone_number : null,
+        userId,
+      ],
+    );
+
+    if (current.role === "student") {
+      const nextRegNumber = reg_number !== undefined ? reg_number : current.reg_number;
+      const nextProgramme = programme !== undefined ? programme : current.programme;
+      const nextInstitutionId = institution_id !== undefined ? institution_id : current.institution_id;
+
+      if (!nextRegNumber) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "Registration number is required for students." });
+      }
+
+      if (!nextInstitutionId) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "Institution is required for students." });
+      }
+
+      if (!nextProgramme || !["WBL", "SBL"].includes(nextProgramme)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "Programme must be WBL or SBL." });
+      }
+
+      if (nextRegNumber !== current.reg_number) {
+        const duplicateReg = await client.query(
+          "SELECT id FROM students WHERE reg_number = $1 AND user_id <> $2",
+          [nextRegNumber, userId],
+        );
+        if (duplicateReg.rows.length > 0) {
+          await client.query("ROLLBACK");
+          return res.status(409).json({ message: "Registration number already in use." });
+        }
+      }
+
+      const institutionExists = await client.query(
+        "SELECT id FROM institutions WHERE id = $1",
+        [nextInstitutionId],
+      );
+      if (institutionExists.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "Invalid institution selected." });
+      }
+
+      await client.query(
+        `UPDATE students
+         SET reg_number = $1,
+             programme = $2,
+             institution_id = $3
+         WHERE user_id = $4`,
+        [nextRegNumber, nextProgramme, nextInstitutionId, userId],
+      );
+    }
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      message: "User updated successfully.",
+      user: nextUser.rows[0],
+    });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("Update user error:", err);
+    return res.status(500).json({ message: "Server error." });
+  } finally {
+    client.release();
+  }
+};
+
+// DELETE /api/admin/users/:userId — remove user account
+const deleteUser = async (req, res) => {
+  const { userId } = req.params;
+
+  if (req.user?.id === userId) {
+    return res.status(400).json({ message: "You cannot delete your own account." });
+  }
+
+  try {
+    const existing = await pool.query(
+      "SELECT id, email, full_name FROM users WHERE id = $1",
+      [userId],
+    );
+
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    await pool.query("DELETE FROM users WHERE id = $1", [userId]);
+
+    return res.status(200).json({
+      message: `User '${existing.rows[0].full_name || existing.rows[0].email}' deleted successfully.`,
+    });
+  } catch (err) {
+    if (err.code === "23503") {
+      return res.status(400).json({
+        message: "Cannot delete user because related records depend on this account.",
+      });
+    }
+    console.error("Delete user error:", err);
+    return res.status(500).json({ message: "Server error." });
   }
 };
 
@@ -636,9 +903,13 @@ module.exports = {
   getOverview,
   getInstitutions,
   createInstitution,
+  updateInstitution,
+  deleteInstitution,
   createUser,
   getAuditTrails,
   getUsers,
+  updateUser,
+  deleteUser,
   getFinalGrade,
   bulkCreateUsers,
   resetUserPassword,

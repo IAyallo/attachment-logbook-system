@@ -447,6 +447,16 @@ const reviewApplication = async (req, res) => {
           });
         }
         hostUserId = existingUser.rows[0].id;
+
+        // Keep host user profile aligned with latest details submitted in the approved application.
+        await client.query(
+          `UPDATE users
+           SET full_name = $1,
+               phone_number = $2,
+               updated_at = NOW()
+           WHERE id = $3`,
+          [app.supervisor_name, app.supervisor_phone, hostUserId],
+        );
       } else {
         tempPasswordUsed = temp_password || 'Passw0rd!';
         const passwordHash = await bcrypt.hash(tempPasswordUsed, 10);
@@ -461,20 +471,25 @@ const reviewApplication = async (req, res) => {
         hostUserId = createdUser.rows[0].id;
       }
 
-      const hostSupervisor = await client.query(
-        `SELECT id FROM host_supervisors WHERE user_id = $1`,
-        [hostUserId],
+      // Prefer a host supervisor profile that matches submitted institution details.
+      // If no such profile exists, create a new one and assign the student to it.
+      const matchingHostSupervisor = await client.query(
+        `SELECT id
+         FROM host_supervisors
+         WHERE user_id = $1 AND institution_id = $2
+         ORDER BY id DESC
+         LIMIT 1`,
+        [hostUserId, approvedInstitutionId],
       );
 
-      if (hostSupervisor.rows.length > 0) {
-        onboardedHostSupervisorId = hostSupervisor.rows[0].id;
+      if (matchingHostSupervisor.rows.length > 0) {
+        onboardedHostSupervisorId = matchingHostSupervisor.rows[0].id;
 
         await client.query(
           `UPDATE host_supervisors
-           SET institution_id = $1,
-               job_title = $2
-           WHERE id = $3`,
-          [approvedInstitutionId, app.supervisor_designation, onboardedHostSupervisorId],
+           SET job_title = $1
+           WHERE id = $2`,
+          [app.supervisor_designation, onboardedHostSupervisorId],
         );
       } else {
         const createdHost = await client.query(

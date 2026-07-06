@@ -30,6 +30,14 @@ interface ProtectedRouteProps {
   allowedRole?: string;
 }
 
+const SESSION_END_MESSAGE_KEY = "sessionEndedMessage";
+
+const endSessionWithMessage = (message: string) => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  localStorage.setItem(SESSION_END_MESSAGE_KEY, message);
+};
+
 const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -39,8 +47,10 @@ const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
   if (user.must_change_password && location.pathname !== "/change-password") {
     return <Navigate to="/change-password" replace />;
   }
-  if (allowedRole && user.role !== allowedRole)
+  if (allowedRole && user.role !== allowedRole) {
+    endSessionWithMessage("Unauthorized access attempt. Your session has ended. Please log in again.");
     return <Navigate to="/login" replace />;
+  }
 
   return <>{children}</>;
 };

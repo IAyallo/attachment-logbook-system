@@ -46,7 +46,8 @@ CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email           VARCHAR(255) NOT NULL UNIQUE,
     password_hash   VARCHAR(255) NOT NULL,
-    phone_number    VARCHAR(30) NOT NULL CHECK (phone_number ~ '^07[0-9]{8}$'),
+    full_name       VARCHAR(150),
+    phone_number    VARCHAR(30) CHECK (phone_number ~ '^07[0-9]{8}$'),
     must_change_password BOOLEAN NOT NULL DEFAULT FALSE,
     role            user_role NOT NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -279,6 +280,23 @@ CREATE TABLE student_attachment_history (
 );
 
 -- ============================================================
+-- 14. COMPOSITE REPORTS
+-- ============================================================
+
+CREATE TABLE composite_reports (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id      UUID NOT NULL UNIQUE REFERENCES students(id) ON DELETE CASCADE,
+    graded_by       UUID REFERENCES faculty_supervisors(id) ON DELETE SET NULL,
+    file_path       TEXT NOT NULL,
+    file_name       VARCHAR(255) NOT NULL,
+    status          VARCHAR(20) NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'graded', 'rejected')),
+    marks           DECIMAL(5,2) CHECK (marks >= 0 AND marks <= 50),
+    faculty_comments TEXT,
+    submitted_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+    graded_at       TIMESTAMP
+);
+
+-- ============================================================
 -- INDEXES (performance)
 -- ============================================================
 
@@ -307,6 +325,9 @@ ON student_attachment_history(student_id, created_at DESC);
 
 -- Speed up student lookups by reg number
 CREATE INDEX idx_students_reg_number ON students(reg_number);
+
+-- Speed up composite report lookups by status and student
+CREATE INDEX idx_composite_reports_status_submitted_at ON composite_reports(status, submitted_at DESC);
 
 -- ============================================================
 -- UPDATED_AT TRIGGER (auto-update timestamp on users)

@@ -6,9 +6,13 @@ const {
     getOverview,
     getInstitutions,
     createInstitution,
+    updateInstitution,
+    deleteInstitution,
     createUser,
     getAuditTrails,
     getUsers,
+    updateUser,
+    deleteUser,
     getFinalGrade,
     bulkCreateUsers,
     resetUserPassword,
@@ -20,9 +24,13 @@ const {
 router.get('/overview', verifyToken, verifyAdmin, getOverview);
 router.get('/institutions', verifyToken, verifyAdmin, getInstitutions);
 router.post('/institutions', verifyToken, verifyAdmin, createInstitution);
+router.patch('/institutions/:institutionId', verifyToken, verifyAdmin, updateInstitution);
+router.delete('/institutions/:institutionId', verifyToken, verifyAdmin, deleteInstitution);
 router.post('/users', verifyToken, verifyAdmin, createUser);
 router.get('/audit-trails', verifyToken, verifyAdmin, getAuditTrails);
 router.get('/users', verifyToken, verifyAdmin, getUsers);
+router.patch('/users/:userId', verifyToken, verifyAdmin, updateUser);
+router.delete('/users/:userId', verifyToken, verifyAdmin, deleteUser);
 router.patch('/users/:userId/reset-password', verifyToken, verifyAdmin, resetUserPassword);
 router.get('/assignment-options', verifyToken, verifyAdmin, getAssignmentOptions);
 router.get('/assignments', verifyToken, verifyAdmin, getAssignments);
